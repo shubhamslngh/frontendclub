@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { clubService } from '@/services/clubService';
 
 export default function LoginPage() {
@@ -73,6 +74,13 @@ export default function LoginPage() {
             {loading ? 'Authenticating...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-500">Don't have an account? </span>
+          <Link href="/register" className="font-semibold text-blue-600 hover:text-blue-500">
+            Register
+          </Link>
+        </div>
       </div>
     </div>
   );
