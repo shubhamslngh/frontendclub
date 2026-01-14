@@ -19,7 +19,6 @@ export default function DashboardOverview() {
     teamCount: 0,
     upcomingMatches: [],
     recentTransactions: [],
-    pendingInvoices: [],
     totalRevenue: 0
   });
   const [loading, setLoading] = useState(true);
@@ -59,19 +58,12 @@ export default function DashboardOverview() {
           .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
           .slice(0, 4);
 
-        // Filter pending invoices (Assuming API returns all. Ideally backend filters for user)
-        // For now, displaying all unpaid transactions as "Pending Dues"
-        const pending = transactions
-          .filter(t => !t.paid)
-          .sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
-
         setStats({
           playerCount: players.length,
           activeMembers,
           teamCount: teamsRes.data.length,
           upcomingMatches: upcoming,
           recentTransactions: recentTx,
-          pendingInvoices: pending,
           totalRevenue: revenue
         });
       } catch (error) {
@@ -186,41 +178,6 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Pending Invoices Section */}
-      {stats.pendingInvoices.length > 0 && (
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-red-700">Pending Invoices</CardTitle>
-            <CardDescription className="text-red-600">
-              You have {stats.pendingInvoices.length} unpaid invoices. Please clear your dues.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.pendingInvoices.map((t) => (
-                <div key={t.id} className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-red-100 rounded-full text-red-600">
-                      <IndianRupee className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">{t.category ? t.category.replace('_', ' ').toUpperCase() : 'FEE'}</p>
-                      <p className="text-sm text-gray-500">Due Date: {t.payment_date}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="font-bold text-lg">₹{parseFloat(t.amount).toLocaleString()}</span>
-                    <Button onClick={() => handlePayNow(t.id)} className="bg-red-600 hover:bg-red-700 text-white">
-                      Pay Now
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Main Content Split: Matches (Left) vs Finance (Right) */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">

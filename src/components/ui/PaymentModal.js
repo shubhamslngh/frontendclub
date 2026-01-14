@@ -7,7 +7,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
@@ -23,7 +22,7 @@ export default function PaymentModal({ open, onOpenChange, onSuccess }) {
     amount: "",
     category: "monthly_fee", // Changed from payment_type
     payment_date: new Date().toISOString().split('T')[0], // Changed from date
-    paid: false // Default to pending invoice
+    paid: true // Assuming immediate payment
   });
 
   useEffect(() => {
@@ -126,17 +125,6 @@ export default function PaymentModal({ open, onOpenChange, onSuccess }) {
               onChange={(e) => setFormData({...formData, payment_date: e.target.value})}
               required
             />
-          </div>
-
-          <div className="flex items-center space-x-2 pt-2">
-            <Checkbox
-              id="paid"
-              checked={formData.paid}
-              onCheckedChange={(checked) => setFormData({...formData, paid: checked})}
-            />
-            <Label htmlFor="paid" className="cursor-pointer">
-              Mark as Paid?
-            </Label>
           </div>
 
           <DialogFooter>

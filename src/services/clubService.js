@@ -7,7 +7,6 @@ export const clubService = {
     const response = await apiClient.post('/api-token-auth/', { username, password });
     return response.data; // Expected { token: "..." }
   },
-  register: (data) => apiClient.post('api/auth/register/', data),
 
   // 2. Players
   getPlayers: () => apiClient.get('api/players/'),
@@ -36,8 +35,6 @@ updateInventoryItem: (id, data) => apiClient.put(`api/inventory-items/${id}/`, d
 deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
   // 5. Transactions (Financials)
   getTransactions: () => apiClient.get('api/transactions/'),
-  initiatePayment: (transactionId) => apiClient.post('api/financials/initiate-payment/', { transaction_id: transactionId }),
-  checkPaymentStatus: (merchantTransactionId) => apiClient.post('api/financials/payment-callback/', { merchantTransactionId }),
 
 
   recordTransaction: (data) => apiClient.post('api/transactions/', data),
