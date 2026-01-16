@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
+import Image from 'next/image';
 const navItems = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Players', href: '/players', icon: Users },
@@ -26,8 +26,8 @@ export default function DashboardLayout({ children }) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-radial-[at_20%_75%] from-stone-900 via-gray-900 to-black to-90% text-slate-50">
       <div className="p-6">
-        <h2 className="text-xl text-stone-100 bg-gradient-to-l from-black from-10% via-black-500 via-30% to-gray-900 to-90%  shadow-md bg-black/90 font-bold rounded-sm p-2 tracking-tight flex items-center gap-2">
-          <Trophy className="text-yellow-500" />
+        <h2 className="text-xl text-stone-100 bg-linear-to-l from-black from-10% via-black-500 via-30% to-gray-900 to-90%  shadow-md bg-black/90 font-bold rounded-sm p-2 tracking-tight flex items-center gap-2">
+          <Image src="/KK11-logo.webp" alt="KK Logo" width={50} height={50} className="inline-block"/>
           KK Cricket
         </h2>
       </div>
