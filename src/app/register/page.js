@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
 import { toast } from "sonner";
 import { clubService } from "@/services/clubService";
@@ -29,6 +29,13 @@ export default function RegisterPage() {
     phone_number: "",
     password: "",
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem("club_token");
+    if (token) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

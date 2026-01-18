@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
 import { clubService } from "@/services/clubService";
 
@@ -19,11 +19,18 @@ const bodyFont = Space_Grotesk({
 });
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("club_token");
+    if (token) {
+      router.replace("/dashboard");
+    }
+  }, [router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -31,11 +38,12 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const data = await clubService.login(username, password);
+      const data = await clubService.login(phoneNumber, password);
       localStorage.setItem("club_token", data.token);
+      localStorage.setItem("club_user_name", phoneNumber);
       router.push("/dashboard");
     } catch (err) {
-      setError("Invalid username or password. Please try again.");
+      setError("Invalid phone number or password. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -134,14 +142,14 @@ export default function LoginPage() {
 
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
-                    Username
+                    Phone Number
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
                     className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
                   />
                 </div>
 

@@ -20,7 +20,9 @@ export default function DashboardOverview() {
     upcomingMatches: [],
     recentTransactions: [],
     pendingInvoices: [],
-    totalRevenue: 0
+    totalRevenue: 0,
+    groundMap: {},
+    teamMap: {}
   });
   const [loading, setLoading] = useState(true);
 
@@ -28,25 +30,37 @@ export default function DashboardOverview() {
     const loadDashboardData = async () => {
       try {
         // Fetch all data in parallel
-        const [playersRes, teamsRes, matchesRes, financeRes] = await Promise.all([
+        const [playersRes, teamsRes, matchesRes, financeRes, groundsRes] = await Promise.all([
           clubService.getPlayers(),
           clubService.getTeams(),
           clubService.getMatches(),
-          clubService.getTransactions()
+          clubService.getTransactions(),
+          clubService.getGrounds()
         ]);
 
         const players = playersRes.data;
         const matches = matchesRes.data;
         const transactions = financeRes.data;
+        const grounds = groundsRes.data;
 
         // 1. Player Stats
         const activeMembers = players.filter(p => p.membership_active).length;
 
         // 2. Match Stats (Filter for future dates)
         const now = new Date();
+        const groundMap = {};
+        grounds.forEach((ground) => {
+          groundMap[ground.id] = ground.name;
+        });
+
+        const teamMap = {};
+        teamsRes.data.forEach((team) => {
+          teamMap[team.id] = team.name;
+        });
+
         const upcoming = matches
-          .filter(m => new Date(m.date_time) > now)
-          .sort((a, b) => new Date(a.date_time) - new Date(b.date_time))
+          .filter(m => new Date(m.date) > now)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
           .slice(0, 3); // Get next 3 matches
 
         // 3. Finance Stats (Sum of all paid transactions)
@@ -72,7 +86,9 @@ export default function DashboardOverview() {
           upcomingMatches: upcoming,
           recentTransactions: recentTx,
           pendingInvoices: pending,
-          totalRevenue: revenue
+          totalRevenue: revenue,
+          groundMap,
+          teamMap
         });
       } catch (error) {
         console.error("Dashboard Load Error:", error);
@@ -175,12 +191,12 @@ export default function DashboardOverview() {
           <CardContent>
             <div className="text-2xl font-bold">
               {stats.upcomingMatches.length > 0 
-                ? format(new Date(stats.upcomingMatches[0].date_time), "MMM d") 
+                ? format(new Date(stats.upcomingMatches[0].date), "MMM d") 
                 : "-"}
             </div>
             <p className="text-xs text-muted-foreground truncate">
               {stats.upcomingMatches.length > 0 
-                ? stats.upcomingMatches[0].venue 
+                ? stats.groundMap[stats.upcomingMatches[0].ground] || `Ground #${stats.upcomingMatches[0].ground}` 
                 : "No matches scheduled"}
             </p>
           </CardContent>
@@ -242,20 +258,21 @@ export default function DashboardOverview() {
                   <div key={match.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-center justify-center h-12 w-12 rounded bg-slate-100 text-slate-600">
-                        <span className="text-xs font-bold uppercase">{format(new Date(match.date_time), "MMM")}</span>
-                        <span className="text-lg font-bold">{format(new Date(match.date_time), "d")}</span>
+                        <span className="text-xs font-bold uppercase">{format(new Date(match.date), "MMM")}</span>
+                        <span className="text-lg font-bold">{format(new Date(match.date), "d")}</span>
                       </div>
                       <div className="space-y-1">
                         <p className="text-sm font-medium leading-none">
-                          {match.external_opponent || `Internal Match`}
+                          {match.external_opponent ||
+                            `${stats.teamMap[match.team1] || "Team 1"} vs ${stats.teamMap[match.team2] || "Team 2"}`}
                         </p>
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                            <Activity className="h-3 w-3 text-green-500" /> 
-                           {format(new Date(match.date_time), "h:mm a")} • {match.venue}
+                           {format(new Date(match.date), "h:mm a")} • {stats.groundMap[match.ground] || `Ground #${match.ground}`}
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline">{match.status}</Badge>
+                    <Badge variant="outline">{match.result ? "Completed" : "Scheduled"}</Badge>
                   </div>
                 ))
               )}

@@ -35,6 +35,14 @@ getInventoryCategories: () => apiClient.get('api/inventory-categories/'),
 createInventoryItem: (data) => apiClient.post('api/inventory-items/', data),
 updateInventoryItem: (id, data) => apiClient.put(`api/inventory-items/${id}/`, data),
 deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
+  // Media
+  getMedia: () => apiClient.get('api/media/'),
+  getKpis: () => apiClient.get('api/kpis/'),
+  uploadMedia: (formData) =>
+    apiClient.post('api/media/', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+  deleteMedia: (id) => apiClient.delete(`api/media/${id}/`),
   // 5. Transactions (Financials)
   getTransactions: () => apiClient.get('api/transactions/'),
   initiatePayment: (transactionId) => apiClient.post('api/financials/initiate-payment/', { transaction_id: transactionId }),

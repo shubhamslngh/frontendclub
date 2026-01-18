@@ -26,6 +26,9 @@ export default function MatchModal({ open, onOpenChange, match, onSuccess }) {
     external_opponent: "",
     ground: "",
     date: "",
+    reporting_time: "",
+    ball_type: "whiteleather",
+    team_dress: "",
     result: "",
     winner: ""
   });
@@ -54,6 +57,9 @@ export default function MatchModal({ open, onOpenChange, match, onSuccess }) {
         external_opponent: "",
         ground: "",
         date: "",
+        reporting_time: "",
+        ball_type: "whiteleather",
+        team_dress: "",
         result: "",
         winner: ""
       });
@@ -71,6 +77,9 @@ export default function MatchModal({ open, onOpenChange, match, onSuccess }) {
       date: match.date
         ? new Date(match.date).toISOString().slice(0, 16)
         : "",
+      reporting_time: match.reporting_time || "",
+      ball_type: match.ball_type || "whiteleather",
+      team_dress: match.team_dress || "",
       result: match.result || "",
       winner: match.winner?.toString() || ""
     });
@@ -99,6 +108,9 @@ export default function MatchModal({ open, onOpenChange, match, onSuccess }) {
           matchType === "external" ? form.external_opponent : null,
         ground: Number(form.ground),
         date: new Date(form.date).toISOString(),
+        reporting_time: form.reporting_time,
+        ball_type: form.ball_type,
+        team_dress: form.team_dress,
         result: form.result || null,
         winner: isCompleted ? Number(form.winner) : null
       };
@@ -201,6 +213,39 @@ export default function MatchModal({ open, onOpenChange, match, onSuccess }) {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              disabled={isCancelled}
+              type="time"
+              value={form.reporting_time}
+              onChange={e => setForm({ ...form, reporting_time: e.target.value })}
+              placeholder="Reporting Time"
+              required
+            />
+            <Select
+              disabled={isCancelled}
+              value={form.ball_type}
+              onValueChange={v => setForm({ ...form, ball_type: v })}
+            >
+              <SelectTrigger><SelectValue placeholder="Ball Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="whiteleather">White Leather</SelectItem>
+                <SelectItem value="redleather">Red Leather</SelectItem>
+                <SelectItem value="pinkleather">Pink Leather</SelectItem>
+                <SelectItem value="tennis">Tennis</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Input
+            disabled={isCancelled}
+            value={form.team_dress}
+            onChange={e => setForm({ ...form, team_dress: e.target.value })}
+            placeholder="Team Dress"
+            required
+          />
 
           {/* Result */}
           {match && (

@@ -1,10 +1,17 @@
 "use client";
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  Users, Trophy, Calendar, Landmark, 
-  Package, LayoutDashboard, LogOut, Menu 
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  Calendar,
+  Image as ImageIcon,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Package,
+  Trophy,
+  Users,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -16,12 +23,32 @@ const navItems = [
   { name: 'Players', href: '/players', icon: Users },
   { name: 'Teams', href: '/teams', icon: Trophy },
   { name: 'Matches', href: '/matches', icon: Calendar },
+  { name: 'Media', href: '/media', icon: ImageIcon },
   { name: 'Finance', href: '/finance', icon: Landmark },
   { name: 'Inventory', href: '/inventory', icon: Package },
 ];
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
+
+  const handleLogout = () => {
+    localStorage.removeItem("club_token");
+    localStorage.removeItem("club_user_name");
+    router.push("/login");
+  };
+
+  useEffect(() => {
+    const storedName = localStorage.getItem("club_user_name");
+    if (storedName) {
+      setDisplayName(storedName);
+    }
+    const token = localStorage.getItem("club_token");
+    if (!token) {
+      router.replace("/login");
+    }
+  }, []);
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-radial-[at_20%_75%] from-stone-900 via-gray-900 to-black to-90% text-slate-50">
@@ -53,7 +80,11 @@ export default function DashboardLayout({ children }) {
         </div>
       </ScrollArea>
       <div className="p-4 border-t border-slate-800">
-        <Button variant="ghost" className="w-full justify-start gap-3 text-red-400 hover:text-red-300 hover:bg-red-950/30">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-3 text-red-400 hover:text-red-300 hover:bg-red-950/30"
+          onClick={handleLogout}
+        >
           <LogOut className="h-4 w-4" />
           Logout
         </Button>
@@ -85,7 +116,9 @@ export default function DashboardLayout({ children }) {
           </div>
           
           <div className="ml-auto flex items-center gap-4">
-            <span className="text-sm font-medium text-slate-600 hidden sm:inline">Admin Portal</span>
+            <span className="text-sm font-medium text-slate-600 hidden sm:inline">
+              {displayName ? `Welcome, ${displayName}` : "Admin Portal"}
+            </span>
             <Avatar>
               <AvatarImage src="https://github.com/shadcn.png" />
               <AvatarFallback>AD</AvatarFallback>
