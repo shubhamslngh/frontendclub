@@ -20,7 +20,7 @@ const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 const normalizeUrl = (file) => {
   if (!file) return "";
   if (file.startsWith("http://") || file.startsWith("https://")) return file;
-  const base = process.env.NEXT_PUBLIC_MEDIA_BASE_URL || FALLBACK_MEDIA_BASE;
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || FALLBACK_MEDIA_BASE;
   const needsSlash = file.startsWith("/") ? "" : "/";
   return `${base}${needsSlash}${file}`;
 };

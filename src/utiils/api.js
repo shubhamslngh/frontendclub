@@ -1,15 +1,16 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const normalizedBaseUrl = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
 
 const apiClient = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: normalizedBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 const apiData = axios.create({
-  baseURL: `API_BASE_URL/api/`,
+  baseURL: `${normalizedBaseUrl}api/`,
   headers: {
     'Content-Type': 'application/json',
   },

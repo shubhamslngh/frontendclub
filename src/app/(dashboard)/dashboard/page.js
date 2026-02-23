@@ -11,6 +11,7 @@ import {
   Activity, ArrowRight, ShieldCheck 
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 export default function DashboardOverview() {
   const [stats, setStats] = useState({
@@ -100,24 +101,48 @@ export default function DashboardOverview() {
     loadDashboardData();
   }, []);
 
+  const getErrorMessage = (error, fallback) => {
+    const data = error?.response?.data;
+    if (!data) return fallback;
+    if (typeof data === "string") return data;
+    if (data.message) return data.message;
+    if (data.error) return data.error;
+    try {
+      return JSON.stringify(data);
+    } catch {
+      return fallback;
+    }
+  };
+
   const handlePayNow = async (transactionId) => {
+    const toastId = toast.loading("Starting payment...");
     try {
       const res = await clubService.initiatePayment(transactionId);
       
       const { payment_url, merchant_transaction_id } = res.data;
       
       if (payment_url) {
+        toast.success("Redirecting to payment gateway...", { id: toastId });
         // Store transaction ID for status page in case callback redirect is stripped of params
         if (merchant_transaction_id) {
           sessionStorage.setItem('current_transaction_id', merchant_transaction_id);
         }
         window.location.href = payment_url;
       } else {
-         console.log("Payment initiated but no URL found:", res.data);
-         // Fallback or error handling
+        const message =
+          res?.data?.message ||
+          res?.data?.error ||
+          "Payment initiated but no URL found.";
+        toast.error(message, { id: toastId });
+        console.log("Payment initiated but no URL found:", res.data);
       }
     } catch (error) {
       console.error("Payment initiation failed:", error);
+      const message = getErrorMessage(
+        error,
+        "Payment initiation failed. Please try again."
+      );
+      toast.error(message, { id: toastId });
     }
   };
 
