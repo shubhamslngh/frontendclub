@@ -43,19 +43,19 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
           <p className="text-muted-foreground">Manage equipment availability and status.</p>
         </div>
-        <Button onClick={() => { setSelectedItem(null); setIsModalOpen(true); }} className="gap-2">
+        <Button onClick={() => { setSelectedItem(null); setIsModalOpen(true); }} className="w-full gap-2 sm:w-auto">
           <Plus className="h-4 w-4" /> Add Item
         </Button>
       </div>
 
       {/* Search and Filters */}
       <div className="flex items-center gap-2">
-        <div className="relative w-full max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search items..."
@@ -68,7 +68,58 @@ export default function InventoryPage() {
 
       {/* Inventory Table */}
       <div className="border rounded-lg bg-white overflow-hidden">
-        <Table>
+        <div className="divide-y md:hidden">
+          {filteredItems.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground">No items found.</div>
+          ) : (
+            filteredItems.map((item) => (
+              <div key={item.id} className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 rounded-full bg-slate-100 p-2">
+                    <Package className="h-4 w-4 text-slate-500" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-slate-900">{item.name}</div>
+                    <div className="text-xs text-slate-500">{getCategoryName(item) || "-"}</div>
+                  </div>
+                  <Button variant="ghost" size="sm" className="h-7 text-xs border" onClick={() => handleEdit(item)}>
+                    Manage
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <div className="text-muted-foreground">Total</div>
+                    <div className="font-semibold">{item.quantity}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Available</div>
+                    <div>{item.available_quantity ?? "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Distributed</div>
+                    <div>{item.distributed_quantity ?? "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Missing</div>
+                    <div>{item.missing_quantity ?? "-"}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Destroyed</div>
+                    <div>{item.destroyed_quantity ?? "-"}</div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-500 border-t pt-3">
+                  {item.description || "-"}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden md:block">
+          <Table>
           <TableHeader className="bg-slate-50">
             <TableRow>
               <TableHead>Item Name</TableHead>
@@ -115,6 +166,7 @@ export default function InventoryPage() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <InventoryModal 

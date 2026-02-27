@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
@@ -17,6 +17,7 @@ import { clubService } from "@/services/clubService";
 export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   
   // State to hold form data
   const [formData, setFormData] = useState({
@@ -43,12 +44,18 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
     if (team) {
       // Extract just the IDs from the team.players object array
       const existingPlayerIds = team.players?.map(p => p.id) || [];
+      const captainId = team.captain ? team.captain.toString() : "";
+      const captainInt = team.captain ? Number(team.captain) : null;
+      const normalizedIds =
+        captainInt && !existingPlayerIds.includes(captainInt)
+          ? [...existingPlayerIds, captainInt]
+          : existingPlayerIds;
       
       setFormData({ 
         name: team.name, 
         // Convert ID to string for the Select component
-        captain: team.captain ? team.captain.toString() : "",
-        player_ids: existingPlayerIds
+        captain: captainId,
+        player_ids: normalizedIds
       });
     } else {
       // Reset for "Create New" mode
@@ -59,13 +66,27 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
   // Helper to handle checkbox toggles
   const togglePlayer = (playerId) => {
     setFormData(prev => {
+      const captainId = prev.captain ? parseInt(prev.captain, 10) : null;
       const isSelected = prev.player_ids.includes(playerId);
+      if (isSelected && captainId === playerId) {
+        toast.error("Captain must remain in the team.");
+        return prev;
+      }
       const newIds = isSelected 
         ? prev.player_ids.filter(id => id !== playerId)
         : [...prev.player_ids, playerId];
       return { ...prev, player_ids: newIds };
     });
   };
+
+  const filteredPlayers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return players;
+    return players.filter((player) => {
+      const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+      return fullName.includes(query) || player.role?.toLowerCase().includes(query);
+    });
+  }, [players, searchTerm]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,7 +139,7 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>{team ? "Edit Team Squad" : "Create New Team"}</DialogTitle>
         </DialogHeader>
@@ -140,7 +161,17 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
             <Label>Team Captain</Label>
             <Select 
               value={formData.captain} 
-              onValueChange={(v) => setFormData({...formData, captain: v})}
+              onValueChange={(v) => {
+                setFormData((prev) => {
+                  const captainId = v ? parseInt(v, 10) : null;
+                  const needsAdd = captainId && !prev.player_ids.includes(captainId);
+                  return {
+                    ...prev,
+                    captain: v,
+                    player_ids: needsAdd ? [...prev.player_ids, captainId] : prev.player_ids,
+                  };
+                });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a captain" />
@@ -157,14 +188,48 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
 
           {/* Squad Selection Checklist */}
           <div className="space-y-3">
-            <Label>Assign Players to Squad ({formData.player_ids.length} selected)</Label>
-            <ScrollArea className="h-48 border rounded-md p-4 bg-slate-50">
+            <div className="flex items-center justify-between">
+              <Label>Assign Players to Squad ({formData.player_ids.length} selected)</Label>
+              <Input
+                placeholder="Search players..."
+                className="max-w-xs"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="rounded-md border bg-white p-4">
+              {formData.player_ids.length === 0 ? (
+                <div className="text-xs text-slate-500">No players selected yet.</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {formData.player_ids.map((playerId) => {
+                    const player = players.find((p) => p.id === playerId);
+                    const isCaptain = formData.captain && Number(formData.captain) === playerId;
+                    return (
+                      <button
+                        type="button"
+                        key={playerId}
+                        onClick={() => !isCaptain && togglePlayer(playerId)}
+                        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+                          isCaptain
+                            ? "border-green-200 bg-green-50 text-green-700"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                        }`}
+                      >
+                        {player ? `${player.first_name} ${player.last_name}` : `Player #${playerId}`}
+                        {isCaptain ? <span className="text-[10px] uppercase">Captain</span> : "x"}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <ScrollArea className="h-60 rounded-md border bg-slate-50 p-4">
               <div className="space-y-3">
-                {players.map((player) => (
+                {filteredPlayers.map((player) => (
                   <div key={player.id} className="flex items-center space-x-3">
                     <Checkbox 
                       id={`player-${player.id}`}
-                      // Check if this player's ID is in our selected array
                       checked={formData.player_ids.includes(player.id)}
                       onCheckedChange={() => togglePlayer(player.id)}
                     />
@@ -177,6 +242,9 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
                     </label>
                   </div>
                 ))}
+                {filteredPlayers.length === 0 && (
+                  <div className="text-xs text-slate-500">No players match this search.</div>
+                )}
               </div>
             </ScrollArea>
           </div>

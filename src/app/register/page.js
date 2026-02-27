@@ -23,9 +23,6 @@ export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    first_name: "",
-    last_name: "",
-    username: "",
     phone_number: "",
     password: "",
   });
@@ -33,7 +30,11 @@ export default function RegisterPage() {
   useEffect(() => {
     const token = localStorage.getItem("club_token");
     if (token) {
-      router.replace("/dashboard");
+      const storedUrl = localStorage.getItem("club_dashboard_url");
+      const dashboardUrl = storedUrl && !storedUrl.startsWith("/api/") ? storedUrl : null;
+      const role = localStorage.getItem("club_user_role");
+      const fallback = role === "player" ? "/" : "/dashboard";
+      router.replace(dashboardUrl || fallback);
     }
   }, [router]);
 
@@ -42,9 +43,47 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await clubService.register(formData);
-      toast.success("Registration successful! Please login.");
-      router.push("/login");
+      const payload = {
+        phone_number: formData.phone_number,
+        password: formData.password,
+      };
+      const data = await clubService.register(payload);
+        const accessToken = data?.access || data?.token;
+        if (accessToken) {
+          localStorage.setItem("club_token", accessToken);
+          if (data.refresh) {
+            localStorage.setItem("club_refresh_token", data.refresh);
+          }
+        const displayName =
+          [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
+          data.full_name ||
+          data.name ||
+          data.username ||
+          data.phone_number ||
+          formData.phone_number;
+        localStorage.setItem("club_user_name", displayName);
+        if (data.role) {
+          localStorage.setItem("club_user_role", data.role);
+        }
+        if (data.player_id !== undefined && data.player_id !== null) {
+          localStorage.setItem("club_player_id", String(data.player_id));
+        }
+        if (data.player_role) {
+          localStorage.setItem("club_player_role", data.player_role);
+        }
+        const dashboardUrl =
+          data.dashboard_url && !data.dashboard_url.startsWith("/api/")
+            ? data.dashboard_url
+            : null;
+        if (dashboardUrl) {
+          localStorage.setItem("club_dashboard_url", dashboardUrl);
+        }
+        const fallback = data.role === "player" ? "/" : "/dashboard";
+        router.push(dashboardUrl || fallback);
+      } else {
+        toast.success("Registration successful! Please login.");
+        router.push("/login");
+      }
     } catch (error) {
       console.error(error);
       const msg = error.response?.data
@@ -77,15 +116,15 @@ export default function RegisterPage() {
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
               <span className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-slate-900">
-                           <Image
-                             src="/KK11-logo.webp"
-                             alt="KK Cricket Club"
-                             width={62}
-                             height={62}
-                             className=" object-cover"
-                             priority
-                           />
-                         </span>
+                <Image
+                  src="/KK11-logo.webp"
+                  alt="KK Cricket Club"
+                  width={62}
+                  height={62}
+                  className=" object-cover"
+                  priority
+                />
+              </span>
               <div>
                 <p className={`text-2xl uppercase tracking-[0.2em] ${displayFont.className}`}>
                   KK Cricket Club
@@ -136,48 +175,11 @@ export default function RegisterPage() {
               <div className="mb-6">
                 <p className={`text-2xl uppercase ${displayFont.className}`}>Create Account</p>
                 <p className="mt-2 text-sm text-[color:var(--kk-ink)]/60">
-                  Share your details so we can set up your member profile.
+                  Use your phone number to create your player account.
                 </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
-                      First Name
-                    </label>
-                    <input
-                      required
-                      className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
-                      Last Name
-                    </label>
-                    <input
-                      required
-                      className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
-                    Username
-                  </label>
-                  <input
-                    required
-                    className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  />
-                </div>
-
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
                     Phone Number

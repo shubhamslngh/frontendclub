@@ -2,12 +2,12 @@ import apiClient from '@/utiils/api';
 
 export const clubService = {
   // 1. Authentication
-  login: async (username, password) => {
-    // Note: Adjust the endpoint if your token-auth path is different
-    const response = await apiClient.post('/api-token-auth/', { username, password });
-    return response.data; // Expected { token: "..." }
+  login: async (phone_number, password) => {
+    const response = await apiClient.post('/api/auth/login/', { phone_number, password });
+    return response.data;
   },
   register: (data) => apiClient.post('api/auth/register/', data),
+  getPlayerDashboard: () => apiClient.get('api/auth/dashboard/'),
 
   // 2. Players
   getPlayers: () => apiClient.get('api/players/'),
@@ -19,6 +19,7 @@ export const clubService = {
   createTeam: (data) => apiClient.post('api/teams/', data),
   updateTeam: (id, data) => apiClient.put(`api/teams/${id}/`, data),
   deleteTeam: (id) => apiClient.delete(`api/teams/${id}/`), 
+  getLineups: (params) => apiClient.get('api/lineups/', { params }),
   // 4. Matches
   getMatches: () => apiClient.get('api/matches/'),
   scheduleMatch: (data) => apiClient.post('api/matches/', data),

@@ -23,7 +23,8 @@ export default function DashboardOverview() {
     pendingInvoices: [],
     totalRevenue: 0,
     groundMap: {},
-    teamMap: {}
+    teamMap: {},
+    playerMap: {}
   });
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +59,10 @@ export default function DashboardOverview() {
         teamsRes.data.forEach((team) => {
           teamMap[team.id] = team.name;
         });
+        const playerMap = {};
+        players.forEach((player) => {
+          playerMap[player.id] = `${player.first_name} ${player.last_name}`;
+        });
 
         const upcoming = matches
           .filter(m => new Date(m.date) > now)
@@ -89,7 +94,8 @@ export default function DashboardOverview() {
           pendingInvoices: pending,
           totalRevenue: revenue,
           groundMap,
-          teamMap
+          teamMap,
+          playerMap
         });
       } catch (error) {
         console.error("Dashboard Load Error:", error);
@@ -153,16 +159,16 @@ export default function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Overview of your club's performance today.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href="/matches">Schedule Match</Link>
           </Button>
-          <Button asChild>
+          <Button className="w-full sm:w-auto" asChild>
             <Link href="/players">Add Player</Link>
           </Button>
         </div>
@@ -240,8 +246,8 @@ export default function DashboardOverview() {
           <CardContent>
             <div className="space-y-4">
               {stats.pendingInvoices.map((t) => (
-                <div key={t.id} className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-                  <div className="flex items-center space-x-4">
+                <div key={t.id} className="flex flex-col gap-4 bg-white p-4 rounded-lg shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start space-x-4">
                     <div className="p-2 bg-red-100 rounded-full text-red-600">
                       <IndianRupee className="h-5 w-5" />
                     </div>
@@ -250,7 +256,7 @@ export default function DashboardOverview() {
                       <p className="text-sm text-gray-500">Due Date: {t.payment_date}</p>
                     </div>
                   </div>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center justify-between sm:justify-end sm:space-x-4">
                     <span className="font-bold text-lg">₹{parseFloat(t.amount).toLocaleString()}</span>
                     <Button onClick={() => handlePayNow(t.id)} className="bg-red-600 hover:bg-red-700 text-white">
                       Pay Now
@@ -267,7 +273,7 @@ export default function DashboardOverview() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
         
         {/* Upcoming Fixtures - Takes up 4 columns */}
-        <Card className="col-span-4">
+        <Card className="col-span-1 md:col-span-2 lg:col-span-4">
           <CardHeader>
             <CardTitle>Upcoming Fixtures</CardTitle>
             <CardDescription>
@@ -280,7 +286,7 @@ export default function DashboardOverview() {
                 <div className="text-sm text-center py-4 text-slate-500">No upcoming matches found.</div>
               ) : (
                 stats.upcomingMatches.map((match) => (
-                  <div key={match.id} className="flex items-center justify-between border-b pb-4 last:border-0 last:pb-0">
+                  <div key={match.id} className="flex flex-col gap-3 border-b pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col items-center justify-center h-12 w-12 rounded bg-slate-100 text-slate-600">
                         <span className="text-xs font-bold uppercase">{format(new Date(match.date), "MMM")}</span>
@@ -297,7 +303,7 @@ export default function DashboardOverview() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline">{match.result ? "Completed" : "Scheduled"}</Badge>
+                    <Badge variant="outline" className="w-fit">{match.result ? "Completed" : "Scheduled"}</Badge>
                   </div>
                 ))
               )}
@@ -306,7 +312,7 @@ export default function DashboardOverview() {
         </Card>
 
         {/* Recent Transactions - Takes up 3 columns */}
-        <Card className="col-span-3">
+        <Card className="col-span-1 md:col-span-2 lg:col-span-3">
           <CardHeader>
             <CardTitle>Recent Payments</CardTitle>
             <CardDescription>
@@ -319,13 +325,15 @@ export default function DashboardOverview() {
                 <div className="text-sm text-center py-4 text-slate-500">No recent transactions.</div>
               ) : (
                 stats.recentTransactions.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between">
+                  <div key={t.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-9 w-9">
                         <AvatarFallback className="bg-green-100 text-green-700 text-xs">₹</AvatarFallback>
                       </Avatar>
                       <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">Player #{t.player}</p>
+                        <p className="text-sm font-medium leading-none">
+                          {stats.playerMap[t.player] || `Player #${t.player}`}
+                        </p>
                         <p className="text-xs text-muted-foreground capitalize">
                           {t.category.replace('_', ' ')}
                         </p>

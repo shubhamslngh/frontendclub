@@ -10,6 +10,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 function PaymentStatusContent() {
   const [status, setStatus] = useState('loading'); // loading, success, failure
   const [message, setMessage] = useState('Verifying payment status...');
+  const [returnHref, setReturnHref] = useState('/player/dashboard');
+
+  useEffect(() => {
+    const role = localStorage.getItem('club_user_role');
+    if (role && role !== 'player') {
+      setReturnHref('/dashboard');
+    }
+  }, []);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -29,8 +37,8 @@ function PaymentStatusContent() {
           setMessage('Your payment was successful!');
           sessionStorage.removeItem('current_transaction_id'); // Clear on success
         } else if (apiStatus === 'pending') {
-            setStatus('pending');
-            setMessage('Payment is currently pending. Please check back later.');
+          setStatus('pending');
+          setMessage('Payment is currently pending. Please check back later.');
         } else {
           setStatus('failure');
           setMessage('Payment failed or declined.');
@@ -69,13 +77,8 @@ function PaymentStatusContent() {
         <CardContent>
           <div className="flex flex-col gap-3">
             <Button asChild className="w-full">
-              <Link href="/dashboard">Return to Dashboard</Link>
+              <Link href={returnHref}>Return</Link>
             </Button>
-            {status === 'failure' && (
-              <Button variant="outline" asChild className="w-full">
-                <Link href="/finance">Try Again / View Invoices</Link>
-              </Button>
-            )}
           </div>
         </CardContent>
       </Card>

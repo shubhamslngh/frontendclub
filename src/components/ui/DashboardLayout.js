@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from 'next/image';
 const navItems = [
@@ -35,7 +35,10 @@ export default function DashboardLayout({ children }) {
 
   const handleLogout = () => {
     localStorage.removeItem("club_token");
+    localStorage.removeItem("club_refresh_token");
     localStorage.removeItem("club_user_name");
+    localStorage.removeItem("club_user_role");
+    localStorage.removeItem("club_dashboard_url");
     router.push("/login");
   };
 
@@ -110,6 +113,9 @@ export default function DashboardLayout({ children }) {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-64">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Navigation</SheetTitle>
+                </SheetHeader>
                 <SidebarContent />
               </SheetContent>
             </Sheet>

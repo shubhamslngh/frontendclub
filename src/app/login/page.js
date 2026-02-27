@@ -28,7 +28,11 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem("club_token");
     if (token) {
-      router.replace("/dashboard");
+      const storedUrl = localStorage.getItem("club_dashboard_url");
+      const dashboardUrl = storedUrl && !storedUrl.startsWith("/api/") ? storedUrl : null;
+      const role = localStorage.getItem("club_user_role");
+      const fallback = role === "player" ? "/" : "/dashboard";
+      router.replace(dashboardUrl || fallback);
     }
   }, [router]);
 
@@ -39,9 +43,39 @@ export default function LoginPage() {
 
     try {
       const data = await clubService.login(phoneNumber, password);
-      localStorage.setItem("club_token", data.token);
-      localStorage.setItem("club_user_name", phoneNumber);
-      router.push("/dashboard");
+      const accessToken = data.access || data.token;
+      if (accessToken) {
+        localStorage.setItem("club_token", accessToken);
+      }
+      if (data.refresh) {
+        localStorage.setItem("club_refresh_token", data.refresh);
+      }
+      const displayName =
+        [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
+        data.full_name ||
+        data.name ||
+        data.username ||
+        data.phone_number ||
+        phoneNumber;
+      localStorage.setItem("club_user_name", displayName);
+      if (data.player_id !== undefined && data.player_id !== null) {
+        localStorage.setItem("club_player_id", String(data.player_id));
+      }
+      if (data.player_role) {
+        localStorage.setItem("club_player_role", data.player_role);
+      }
+      if (data.role) {
+        localStorage.setItem("club_user_role", data.role);
+      }
+      const dashboardUrl =
+        data.dashboard_url && !data.dashboard_url.startsWith("/api/")
+          ? data.dashboard_url
+          : null;
+      if (dashboardUrl) {
+        localStorage.setItem("club_dashboard_url", dashboardUrl);
+      }
+      const fallback = data.role === "player" ? "/" : "/dashboard";
+      router.push(dashboardUrl || fallback);
     } catch (err) {
       setError("Invalid phone number or password. Please try again.");
     } finally {

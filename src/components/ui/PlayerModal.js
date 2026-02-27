@@ -111,8 +111,8 @@ export default function PlayerModal({ open, onOpenChange, player, onSuccess }) {
                 <SelectContent>
                   <SelectItem value="batsman">Batsman</SelectItem>
                   <SelectItem value="bowler">Bowler</SelectItem>
-                  <SelectItem value="all-rounder">All-rounder</SelectItem>
-                  <SelectItem value="wicketkeeper">Wicketkeeper</SelectItem>
+                  <SelectItem value="all_rounder">All-rounder</SelectItem>
+                  <SelectItem value="wicket_keeper">Wicketkeeper</SelectItem>
                 </SelectContent>
               </Select>
             </div>

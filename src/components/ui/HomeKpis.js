@@ -89,6 +89,7 @@ function StatCard({ label, value, tone }) {
         bg-linear-to-br
         from-(--kk-cream)
         to-(--kk-cream)/80
+        border-t-4 
         p-6 shadow-md
         backdrop-blur-sm
       `}
@@ -180,14 +181,14 @@ export default function HomeKpis() {
         const data = res.data || {};
 
         const nextStats = [
-          { label: "Total Players", value: data.total_players ?? 0, tone: "ink" },
-          { label: "Total Teams", value: data.total_teams ?? 0, tone: "field" },
-          { label: "Total Matches", value: data.total_matches ?? 0, tone: "ember" },
+          { label: " Players", value: data.total_players ?? 0, tone: "ink" },
+          { label: " Teams", value: data.total_teams ?? 0, tone: "field" },
+          { label: " Matches", value: data.total_matches ?? 0, tone: "ember" },
           { label: "Upcoming Matches", value: data.upcoming_matches ?? 0, tone: "ember" },
-          { label: "Total Tournaments", value: data.total_tournaments ?? 0, tone: "field" },
+          { label: " Tournaments", value: data.total_tournaments ?? 0, tone: "field" },
           { label: "Upcoming Tournaments", value: data.upcoming_tournaments ?? 0, tone: "field" },
-          { label: "Total Grounds", value: data.total_grounds ?? 0, tone: "ink" },
-          { label: "Total Media", value: data.total_media ?? 0, tone: "ember" },
+          { label: " Grounds", value: data.total_grounds ?? 0, tone: "ink" },
+          { label: " Media", value: data.total_media ?? 0, tone: "ember" },
         ];
 
         if (isActive) {
@@ -218,15 +219,24 @@ export default function HomeKpis() {
         show: {
           opacity: 1,
           transition: {
-            staggerChildren: 0.1, // Stagger effect
+            staggerChildren: 0.1,
           },
         },
       }}
-      className="flex w-auto p-2 overflow-scroll gap-2 text-center "
+      className="
+      grid
+      w-full
+      gap-6
+      p-4
+      grid-cols-2
+      sm:grid-cols-3
+      md:grid-cols-4
+      xl:grid-cols-4
+    "
     >
       {stats.map((stat, index) => (
         <StatCard
-          key={stat.label + index} // Index added to ensure unique key if labels duplicate
+          key={stat.label + index}
           label={stat.label}
           value={stat.value}
           tone={stat.tone}

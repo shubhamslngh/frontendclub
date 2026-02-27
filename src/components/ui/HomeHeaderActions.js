@@ -6,17 +6,25 @@ import Link from "next/link";
 
 export default function HomeHeaderActions() {
   const [hasToken, setHasToken] = useState(false);
+  const [role, setRole] = useState("");
   const router = useRouter();
 
   useEffect(() => {
     const token = localStorage.getItem("club_token");
     setHasToken(Boolean(token));
+    setRole(localStorage.getItem("club_user_role") || "");
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("club_token");
+    localStorage.removeItem("club_refresh_token");
     localStorage.removeItem("club_user_name");
+    localStorage.removeItem("club_user_role");
+    localStorage.removeItem("club_dashboard_url");
+    localStorage.removeItem("club_player_id");
+    localStorage.removeItem("club_player_role");
     setHasToken(false);
+    setRole("");
     router.refresh();
   };
 
@@ -38,12 +46,19 @@ export default function HomeHeaderActions() {
           Member Login
         </Link>
       )}
-      {hasToken ? (
+      {hasToken && role === "player" ? (
+        <Link
+          href="/player/dashboard"
+          className="hidden rounded-full border border-[color:var(--kk-ember)] px-5 py-2 text-sm font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:inline-flex"
+        >
+          Player Dashboard
+        </Link>
+      ) : hasToken ? (
         <Link
           href="/dashboard"
           className="hidden rounded-full border border-[color:var(--kk-ember)] px-5 py-2 text-sm font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:inline-flex"
         >
-          Dashboard
+          Admin Dashboard
         </Link>
       ) : (
         <Link
