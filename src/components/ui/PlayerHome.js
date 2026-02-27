@@ -168,7 +168,6 @@ export default function PlayerHome() {
     (player.membership_active ? "Active" : membership.is_active ? "Active" : "Inactive");
   const displayName =
     [player.first_name, player.last_name].filter(Boolean).join(" ").trim() ||
-    localStorage.getItem("club_user_name") ||
     "Player";
   const avatarSrc = dashboard.profile_picture ? normalizeUrl(dashboard.profile_picture) : "";
 
