@@ -11,6 +11,7 @@ export const clubService = {
 
   // 2. Players
   getPlayers: () => apiClient.get('api/players/'),
+  getPlayer: (id) => apiClient.get(`api/players/${id}/`),
   createPlayer: (data) => apiClient.post('api/players/', data),
   updatePlayer: (id, data) => apiClient.put(`api/players/${id}/`, data),
   deletePlayer: (id) => apiClient.delete(`api/players/${id}/`),

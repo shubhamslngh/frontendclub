@@ -29,7 +29,7 @@ export default function HomeHeaderActions() {
   };
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
       {hasToken ? (
         <button
           type="button"
@@ -49,14 +49,14 @@ export default function HomeHeaderActions() {
       {hasToken && role === "player" ? (
         <Link
           href="/player/dashboard"
-          className="hidden rounded-full border border-[color:var(--kk-ember)] px-5 py-2 text-sm font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:inline-flex"
+          className="rounded-full border border-[color:var(--kk-ember)] px-4 py-2 text-xs font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:px-5 sm:text-sm"
         >
           Player Dashboard
         </Link>
       ) : hasToken ? (
         <Link
           href="/dashboard"
-          className="hidden rounded-full border border-[color:var(--kk-ember)] px-5 py-2 text-sm font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:inline-flex"
+          className="rounded-full border border-[color:var(--kk-ember)] px-4 py-2 text-xs font-semibold text-[color:var(--kk-ember)] transition hover:bg-[color:var(--kk-ember)] hover:text-white sm:px-5 sm:text-sm"
         >
           Admin Dashboard
         </Link>

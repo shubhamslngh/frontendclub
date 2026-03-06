@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { clubService } from "@/services/clubService";
 import { motion, useSpring, useTransform } from "framer-motion";
+import Link from "next/link";
 import {
   Users,
   Shield,
@@ -19,19 +20,19 @@ import {
 // Map your distinct colors to Tailwind/CSS Variable classes
 const TONE_CONFIG = {
   ink: {
-    text: "text-[color:var(--kk-ink)]",
-    bg: "bg-[color:var(--kk-ink)]/5", // subtle background
-    border: "border-[color:var(--kk-ink)]/20",
+    text: "text-white",
+    bg: "bg-white/5",
+    border: "border-white/15",
   },
   field: {
-    text: "text-[color:var(--kk-field)]",
-    bg: "bg-[color:var(--kk-field)]/5",
-    border: "border-[color:var(--kk-field)]/20",
+    text: "text-emerald-300",
+    bg: "bg-emerald-400/10",
+    border: "border-emerald-300/30",
   },
   ember: {
-    text: "text-[color:var(--kk-ember)]",
-    bg: "bg-[color:var(--kk-ember)]/5",
-    border: "border-[color:var(--kk-ember)]/20",
+    text: "text-orange-300",
+    bg: "bg-orange-400/10",
+    border: "border-orange-300/30",
   },
 };
 
@@ -46,6 +47,15 @@ const getIconForLabel = (label) => {
   if (label.includes("Grounds")) return MapPin;
   if (label.includes("Media")) return ImageIcon;
   return Trophy;
+};
+
+const getRouteForLabel = (label) => {
+  if (label.includes("Players")) return "/club/players";
+  if (label.includes("Teams")) return "/club/teams";
+  if (label.includes("Upcoming Matches")) return "/club/matches";
+  if (label.includes("Matches")) return "/club/matches";
+  if (label.includes("Media")) return "/club/media";
+  return null;
 };
 
 // --- Sub-Components ---
@@ -70,11 +80,12 @@ function AnimatedNumber({ value }) {
 function StatCard({ label, value, tone }) {
   const config = TONE_CONFIG[tone] || TONE_CONFIG.ink;
   const Icon = getIconForLabel(label);
+  const href = getRouteForLabel(label);
 
-  return (
+  const card = (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 30, scale: 0.95 },
+        hidden: { opacity: 0.9, y: 10, scale: 0.95 },
         show: { opacity: 1, y: 0, scale: 1 },
       }}
       whileHover={{
@@ -83,30 +94,23 @@ function StatCard({ label, value, tone }) {
       }}
       transition={{ type: "spring", stiffness: 120, damping: 14 }}
       className={`
-        relative min-w-55
+        relative w-full
         overflow-hidden rounded-3xl border
         ${config.border}
-        bg-linear-to-br
-        from-(--kk-cream)
-        to-(--kk-cream)/80
-        border-t-4 
-        p-6 shadow-md
-        backdrop-blur-sm
+        bg-white/5
+        p-4 shadow-[0_12px_30px_rgba(0,0,0,0.35)] sm:p-6
+        backdrop-blur-lg
+        ${href ? "cursor-pointer transition hover:-translate-y-1 hover:border-orange-500/40 hover:bg-white/10" : ""}
       `}
     >
       {/* Accent glow */}
-      <div
-        className={`
-          absolute -top-10 -right-10 h-32 w-32 rounded-full
-          ${config.bg}
-          blur-3xl opacity-60
-        `}
-      />
+      <div className={`absolute -top-10 -right-10 h-32 w-32 rounded-full ${config.bg} blur-3xl opacity-60`} />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,122,26,0.08),transparent_60%)]" />
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex flex-col gap-1 text-left">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-[color:var(--kk-ink)]/50">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/60">
             {label}
           </p>
         </div>
@@ -128,8 +132,8 @@ function StatCard({ label, value, tone }) {
       {/* Value */}
       <div
         className={`
-          relative z-10 mt-6 text-left
-          text-[42px] font-bold leading-none
+          relative z-10 mt-4 text-left
+          text-[34px] font-bold leading-none sm:text-[42px]
           ${config.text}
           font-[family-name:var(--font-display)]
         `}
@@ -152,6 +156,14 @@ function StatCard({ label, value, tone }) {
         `}
       />
     </motion.div>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link href={href} className="block h-full">
+      {card}
+    </Link>
   );
 }
 
@@ -181,14 +193,14 @@ export default function HomeKpis() {
         const data = res.data || {};
 
         const nextStats = [
-          { label: " Players", value: data.total_players ?? 0, tone: "ink" },
-          { label: " Teams", value: data.total_teams ?? 0, tone: "field" },
-          { label: " Matches", value: data.total_matches ?? 0, tone: "ember" },
+          { label: "Players", value: data.total_players ?? 0, tone: "ink" },
+          { label: "Teams", value: data.total_teams ?? 0, tone: "field" },
+          { label: "Matches", value: data.total_matches ?? 0, tone: "ember" },
           { label: "Upcoming Matches", value: data.upcoming_matches ?? 0, tone: "ember" },
-          { label: " Tournaments", value: data.total_tournaments ?? 0, tone: "field" },
+          { label: "Tournaments", value: data.total_tournaments ?? 0, tone: "field" },
           { label: "Upcoming Tournaments", value: data.upcoming_tournaments ?? 0, tone: "field" },
-          { label: " Grounds", value: data.total_grounds ?? 0, tone: "ink" },
-          { label: " Media", value: data.total_media ?? 0, tone: "ember" },
+          { label: "Grounds", value: data.total_grounds ?? 0, tone: "ink" },
+          { label: "Media", value: data.total_media ?? 0, tone: "ember" },
         ];
 
         if (isActive) {
@@ -226,12 +238,13 @@ export default function HomeKpis() {
       className="
       grid
       w-full
-      gap-6
-      p-4
-      grid-cols-2
-      sm:grid-cols-3
-      md:grid-cols-4
-      xl:grid-cols-4
+      gap-4
+      p-2
+      grid-cols-1
+      sm:grid-cols-2
+      lg:grid-cols-4
+      sm:gap-6
+      sm:p-4
     "
     >
       {stats.map((stat, index) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { clubService } from "@/services/clubService";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
@@ -13,93 +13,83 @@ const normalizeUrl = (file) => {
   return `${base}${needsSlash}${file}`;
 };
 
-export default function MediaGallery({ fallback = [] }) {
+export default function MediaGallery() {
   const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState(null);
+  const featuredRef = useRef(null);
 
   useEffect(() => {
-    let isActive = true;
     const loadMedia = async () => {
       try {
         const res = await clubService.getMedia();
-        if (!isActive) return;
-        setItems(Array.isArray(res.data) ? res.data : []);
+        const data = Array.isArray(res.data) ? res.data : [];
+        setItems(data);
+        if (data.length > 0) setActive(data[0]); // default first featured
       } catch (error) {
         console.error("Failed to load media", error);
-        if (isActive) setItems([]);
-      } finally {
-        if (isActive) setLoading(false);
       }
     };
     loadMedia();
-    return () => {
-      isActive = false;
-    };
   }, []);
 
-  if (!loading && items.length === 0 && fallback.length === 0) {
-    return (
-      <div className="rounded-3xl border border-[color:var(--kk-line)] bg-white p-6 text-sm text-[color:var(--kk-ink)]/70">
-        Gallery items will appear here once media is uploaded.
-      </div>
-    );
-  }
-
-  if (!loading && items.length === 0) {
-    return (
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {fallback.map((photo) => (
-          <div
-            key={photo.title}
-            className={`relative h-44 overflow-hidden rounded-3xl bg-gradient-to-br ${photo.tone} p-4 text-white shadow-sm`}
-          >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.3),_transparent_60%)]" />
-            <div className="relative flex h-full flex-col justify-between">
-              <p className="text-xs uppercase tracking-[0.4em]">Gallery</p>
-              <p className="text-2xl uppercase">{photo.title}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (!active) return null;
 
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((item) => {
-        const mediaType = (item.media_type || "").toLowerCase();
-        const isVideo = mediaType === "video";
-        const src = normalizeUrl(item.file);
+    <section className="text-white py-12 sm:py-16">
+      <div className="space-y-12">
 
-        return (
-          <div
-            key={item.id || `${item.title}-${src}`}
-            className="group relative h-44 overflow-hidden rounded-3xl border border-[color:var(--kk-line)] bg-white shadow-sm"
-          >
-            {isVideo ? (
-              <video
-                className="h-full w-full object-cover"
-                src={src}
-                controls
-                playsInline
-                preload="metadata"
-              />
-            ) : (
+        {/* FEATURED SECTION */}
+        <div ref={featuredRef} className="relative h-[320px] overflow-hidden rounded-3xl sm:h-[420px] lg:h-[520px]">
+          {active && (
+            <>
               <img
+                src={normalizeUrl(active.file)}
+                alt={active.title}
                 className="h-full w-full object-cover"
-                src={src}
-                alt={item.title || "Gallery image"}
-                loading="lazy"
               />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/0 to-transparent opacity-0 transition group-hover:opacity-100" />
-            <div className="absolute bottom-3 left-3 right-3 text-white opacity-0 transition group-hover:opacity-100">
-              <p className="text-xs uppercase tracking-[0.3em]">{isVideo ? "Video" : "Photo"}</p>
-              <p className="text-sm font-semibold">{item.title || "Club Moment"}</p>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent p-4 sm:p-6">
+                <p className="text-xs uppercase tracking-[0.4em] text-white/70">Featured</p>
+                <h3 className="mt-2 text-lg font-semibold text-white sm:text-2xl">
+                  {active.title || "Club Moment"}
+                </h3>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* GRID SECTION */}
+        <div className="flex gap-4 overflow-x-auto pb-2 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible lg:grid-cols-4">
+          {items.map((item) => {
+            const isActive = active?.id === item.id;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setActive(item);
+                  featuredRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={`relative h-44 min-w-[180px] overflow-hidden rounded-2xl text-left transition-all duration-300 sm:min-w-0 sm:h-52 ${
+                  isActive ? "ring-2 ring-[color:var(--kk-ember)]" : ""
+                }`}
+              >
+                <img
+                  src={normalizeUrl(item.file)}
+                  alt={item.title}
+                  className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent p-3">
+                  <p className="text-xs font-semibold text-white">
+                    {item.title || "Club Highlight"}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+      </div>
+    </section>
   );
 }

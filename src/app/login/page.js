@@ -24,6 +24,25 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const getErrorMessage = (err) => {
+    const data = err?.response?.data;
+    if (!data) return "";
+    if (typeof data === "string") return data;
+    const fields = ["detail", "error", "message", "phone_number", "password"];
+    for (const field of fields) {
+      if (!data[field]) continue;
+      const value = data[field];
+      if (Array.isArray(value)) return value.join(" ");
+      if (typeof value === "string") return value;
+    }
+    if (typeof data === "object") {
+      const messages = Object.entries(data)
+        .map(([, value]) => (Array.isArray(value) ? value.join(" ") : value))
+        .filter(Boolean);
+      if (messages.length) return messages.join(" ");
+    }
+    return "";
+  };
 
   useEffect(() => {
     const token = localStorage.getItem("club_token");
@@ -77,54 +96,51 @@ export default function LoginPage() {
       const fallback = data.role === "player" ? "/" : "/dashboard";
       router.push(dashboardUrl || fallback);
     } catch (err) {
-      setError("Invalid phone number or password. Please try again.");
+      const message = getErrorMessage(err) || "Invalid phone number or password. Please try again.";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
+  const glassCard =
+    "rounded-3xl border border-white/10 bg-white/5 backdrop-blur-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)]";
+
   return (
-    <div
-      className={`${displayFont.variable} ${bodyFont.variable} min-h-screen bg-[color:var(--kk-sand)] text-[color:var(--kk-ink)]`}
-      style={{
-        "--kk-sand": "#f7f3e8",
-        "--kk-ink": "#1f241a",
-        "--kk-ember": "#d66b2d",
-        "--kk-field": "#2f6b3f",
-        "--kk-cream": "#fff7e8",
-        "--kk-line": "#e4d8c4",
-      }}
-    >
+    <div className={`${displayFont.variable} ${bodyFont.variable} min-h-screen bg-[#0B0F1A] text-white`}>
       <div className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute -left-20 top-10 h-60 w-60 rounded-full bg-[radial-gradient(circle_at_center,_rgba(214,107,45,0.35),_transparent_70%)] blur-2xl" />
-          <div className="absolute right-0 top-0 h-96 w-96 rounded-full bg-[radial-gradient(circle_at_top,_rgba(47,107,63,0.3),_transparent_65%)] blur-2xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,107,0,0.22),transparent_60%)]" />
+          <div className="absolute -left-24 top-24 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.12),transparent_65%)] blur-2xl" />
+          <div className="absolute left-1/3 top-12 h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle_at_center,rgba(46,204,113,0.16),transparent_65%)] blur-2xl" />
+          <div className="absolute right-[-120px] top-0 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_top,rgba(0,180,216,0.10),transparent_65%)] blur-2xl" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.0),rgba(0,0,0,0.65))]" />
         </div>
         <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-10 px-6 py-16">
           <div className="flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-             <span className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-slate-900">
-                          <Image
-                            src="/KK11-logo.webp"
-                            alt="KK Cricket Club"
-                            width={62}
-                            height={62}
-                            className=" object-cover"
-                            priority
-                          />
-                        </span>
+              <span className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-black ring-2 ring-orange-500/40 shadow-lg">
+                <Image
+                  src="/KK11-logo.webp"
+                  alt="KK Cricket Club"
+                  width={62}
+                  height={62}
+                  className="object-cover"
+                  priority
+                />
+              </span>
               <div>
                 <p className={`text-2xl uppercase tracking-[0.2em] ${displayFont.className}`}>
                   KK Cricket Club
                 </p>
-                <p className="text-xs font-medium uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
+                <p className="text-xs font-medium uppercase tracking-[0.3em] text-orange-400">
                   Member Access
                 </p>
               </div>
             </Link>
             <Link
               href="/register"
-              className="text-sm font-semibold text-[color:var(--kk-field)] hover:text-[color:var(--kk-ember)]"
+              className="text-sm font-semibold text-emerald-300 hover:text-orange-300"
             >
               New member? Register
             </Link>
@@ -132,13 +148,13 @@ export default function LoginPage() {
 
           <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
             <section className="space-y-6">
-              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-[color:var(--kk-field)]">
+              <p className="text-xs font-semibold uppercase tracking-[0.4em] text-white/60">
                 Club Portal
               </p>
               <h1 className={`text-5xl uppercase ${displayFont.className}`}>
                 Member Login
               </h1>
-              <p className="max-w-xl text-sm text-[color:var(--kk-ink)]/70">
+              <p className="max-w-xl text-sm text-white/70">
                 Sign in to manage training schedules, match registrations, and club updates. Your member profile keeps
                 everything in one place.
               </p>
@@ -151,7 +167,7 @@ export default function LoginPage() {
                 ].map((item) => (
                   <div
                     key={item}
-                    className="rounded-2xl border border-[color:var(--kk-line)] bg-white/70 px-4 py-3 text-sm text-[color:var(--kk-ink)]/80"
+                    className={`${glassCard} px-4 py-3 text-sm text-white/80`}
                   >
                     {item}
                   </div>
@@ -159,42 +175,42 @@ export default function LoginPage() {
               </div>
             </section>
 
-            <section className="rounded-3xl border border-[color:var(--kk-line)] bg-white p-8 shadow-sm">
+            <section className={`${glassCard} p-8`}>
               <div className="mb-6">
                 <p className={`text-2xl uppercase ${displayFont.className}`}>Welcome back</p>
-                <p className="mt-2 text-sm text-[color:var(--kk-ink)]/60">
+                <p className="mt-2 text-sm text-white/60">
                   Use your club credentials to access the dashboard.
                 </p>
               </div>
 
               <form onSubmit={handleLogin} className="space-y-5">
                 {error && (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                  <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                     {error}
                   </div>
                 )}
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
+                  <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
                     Phone Number
                   </label>
                   <input
                     type="tel"
                     required
-                    className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
+                    className="w-full rounded-2xl border border-white/20 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-400"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--kk-field)]">
+                  <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
                     Password
                   </label>
                   <input
                     type="password"
                     required
-                    className="w-full rounded-2xl border border-[color:var(--kk-line)] bg-white px-4 py-3 text-sm outline-none transition focus:border-[color:var(--kk-ember)]"
+                    className="w-full rounded-2xl border border-white/20 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-orange-400"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
@@ -203,17 +219,17 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full rounded-full bg-[color:var(--kk-ember)] px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:opacity-60"
                 >
                   {loading ? "Authenticating..." : "Sign In"}
                 </button>
               </form>
 
               <div className="mt-6 text-center text-sm">
-                <span className="text-[color:var(--kk-ink)]/60">Need a new account? </span>
+                <span className="text-white/60">Need a new account? </span>
                 <Link
                   href="/register"
-                  className="font-semibold text-[color:var(--kk-ember)] hover:text-[color:var(--kk-field)]"
+                  className="font-semibold text-orange-300 hover:text-emerald-300"
                 >
                   Register
                 </Link>
