@@ -137,7 +137,7 @@ export default function RegisterPage() {
             <Link href="/" className="flex items-center gap-3">
               <span className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-black ring-2 ring-orange-500/40 shadow-lg">
                 <Image
-                  src="/KK11-logo.webp"
+                  src="/KK11.png"
                   alt="KK Cricket Club"
                   width={62}
                   height={62}
