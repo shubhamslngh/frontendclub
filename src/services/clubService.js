@@ -14,6 +14,10 @@ export const clubService = {
   getPlayer: (id) => apiClient.get(`api/players/${id}/`),
   createPlayer: (data) => apiClient.post('api/players/', data),
   updatePlayer: (id, data) => apiClient.put(`api/players/${id}/`, data),
+  updatePlayerProfile: (id, formData) =>
+    apiClient.put(`api/players/${id}/`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
   deletePlayer: (id) => apiClient.delete(`api/players/${id}/`),
   // 3. Teams
   getTeams: () => apiClient.get('api/teams/'),

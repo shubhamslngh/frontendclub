@@ -58,6 +58,13 @@ const getMatchTitle = (match, teamNames = {}) => {
   return match.title || "Match";
 };
 
+const roleOptions = [
+  { value: "batsman", label: "Batsman" },
+  { value: "bowler", label: "Bowler" },
+  { value: "all_rounder", label: "All-rounder" },
+  { value: "wicket_keeper", label: "Wicketkeeper" },
+];
+
 export default function PlayerHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -73,6 +80,17 @@ export default function PlayerHome() {
   const [transactionsLoading, setTransactionsLoading] = useState(false);
   const [showPlayers, setShowPlayers] = useState(false);
   const [showOtherTeams, setShowOtherTeams] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    age: "",
+    role: "all_rounder",
+  });
+  const [profileFile, setProfileFile] = useState(null);
+  const [profilePreview, setProfilePreview] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
   const [uploadForm, setUploadForm] = useState({
     title: "",
     media_type: "photo",
@@ -173,6 +191,27 @@ export default function PlayerHome() {
     [player.first_name, player.last_name].filter(Boolean).join(" ").trim() ||
     "Player";
   const avatarSrc = dashboard.profile_picture ? normalizeUrl(dashboard.profile_picture) : "";
+  const profileImage = profilePreview || avatarSrc;
+
+  useEffect(() => {
+    if (!player?.id) return;
+    setProfileForm({
+      first_name: player.first_name || "",
+      last_name: player.last_name || "",
+      phone_number: player.phone_number || "",
+      age: player.age ? String(player.age) : "",
+      role: player.role || "all_rounder",
+    });
+    setProfilePreview("");
+    setProfileFile(null);
+  }, [player?.id]);
+
+  useEffect(() => {
+    if (!profileFile) return;
+    const url = URL.createObjectURL(profileFile);
+    setProfilePreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [profileFile]);
 
   const matchesKey = useMemo(() => {
     return upcomingMatches.map((match) => match.id).sort().join("|");
@@ -394,6 +433,117 @@ export default function PlayerHome() {
     }
   };
 
+  const handleProfileUpdate = async (event) => {
+    event.preventDefault();
+    if (!playerId) return;
+    const payload = new FormData();
+    payload.append("first_name", profileForm.first_name);
+    payload.append("last_name", profileForm.last_name);
+    payload.append("phone_number", profileForm.phone_number);
+    payload.append("age", profileForm.age);
+    payload.append("role", profileForm.role);
+    if (profileFile) payload.append("profile_picture", profileFile);
+
+    try {
+      setProfileSaving(true);
+      await clubService.updatePlayerProfile(playerId, payload);
+      const displayName =
+        [profileForm.first_name, profileForm.last_name].filter(Boolean).join(" ").trim();
+      if (displayName) {
+        localStorage.setItem("club_user_name", displayName);
+      }
+      toast.success("Profile updated.");
+      await loadDashboard();
+    } catch (error) {
+      console.error("Failed to update profile", error);
+      toast.error("Could not update your profile.");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const renderMediaSection = () => (
+    <Card className={glassCard}>
+      <CardHeader>
+        <CardTitle className="text-white">Media</CardTitle>
+        <CardDescription className="text-white/60">Upload moments from training and matches.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleUpload} className="grid gap-4 md:grid-cols-[1.1fr_0.8fr_1fr_auto] md:items-end">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white">Title</label>
+            <Input
+              value={uploadForm.title}
+              onChange={(event) => setUploadForm({ ...uploadForm, title: event.target.value })}
+              placeholder="e.g. Net session highlights"
+              className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white">Media Type</label>
+            <select
+              className="h-10 w-full rounded-md border border-white/20 bg-black/30 px-3 text-sm text-white"
+              value={uploadForm.media_type}
+              onChange={(event) => setUploadForm({ ...uploadForm, media_type: event.target.value })}
+            >
+              <option value="photo">Photo</option>
+              <option value="video">Video</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-white">File</label>
+            <input
+              className="block w-full text-sm text-white file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/20"
+              type="file"
+              accept={uploadForm.media_type === "video" ? "video/*" : "image/*"}
+              onChange={(event) => setUploadForm({ ...uploadForm, file: event.target.files?.[0] || null })}
+            />
+          </div>
+          <Button type="submit" disabled={uploading} className="gap-2 bg-orange-500 text-white hover:bg-orange-400">
+            <Upload className="h-4 w-4" />
+            {uploading ? "Uploading..." : "Upload"}
+          </Button>
+        </form>
+
+        {uploadForm.file && (
+          <div className="mt-4 flex items-center gap-3 text-xs text-white/60">
+            <ImageIcon className="h-4 w-4" />
+            Selected: {uploadForm.file?.name}
+          </div>
+        )}
+
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {recentMedia.length === 0 ? (
+            <div className="text-sm text-white/60">No recent media yet.</div>
+          ) : (
+            recentMedia.map((item) => {
+              const mediaType = (item.media_type || "").toLowerCase();
+              const src = normalizeUrl(item.file);
+              return (
+                <div key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                  <div className="h-40 w-full bg-black/40">
+                    {mediaType === "video" ? (
+                      <video className="h-full w-full object-cover" src={src} />
+                    ) : (
+                      <img className="h-full w-full object-cover" src={src} alt={item.title || "Media"} />
+                    )}
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-white">{item.title || "Untitled"}</p>
+                    <p className="text-xs text-white/60">
+                      {formatDate(item.uploaded_at)} • {item.media_type || "Media"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return <div className="p-8 text-center text-white/60">Loading your club home...</div>;
   }
@@ -404,8 +554,8 @@ export default function PlayerHome() {
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 overflow-hidden rounded-2xl border border-white/20 bg-black/40">
-              {avatarSrc ? (
-                <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" />
+              {profileImage ? (
+                <img src={profileImage} alt={displayName} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-emerald-300">
                   {displayName[0] || "P"}
@@ -467,6 +617,120 @@ export default function PlayerHome() {
       {activeTab === "home" && (
         <>
           <section className="space-y-6">
+            <div className="flex flex-wrap gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+                onClick={() => setShowProfileEdit((prev) => !prev)}
+              >
+                {showProfileEdit ? "Close Profile Editor" : "Edit Profile"}
+              </Button>
+            </div>
+            {showProfileEdit && (
+              <Card className={glassCard}>
+                <CardHeader>
+                  <CardTitle className="text-white">Edit Profile</CardTitle>
+                  <CardDescription className="text-white/60">Update your name and squad photo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleProfileUpdate} className="grid gap-4 lg:grid-cols-[auto_1fr] lg:items-start">
+                    <div className="flex flex-col items-center gap-3">
+                      <label className="group relative h-24 w-24 cursor-pointer overflow-hidden rounded-2xl border border-white/20 bg-black/40">
+                        {profileImage ? (
+                          <img src={profileImage} alt={displayName} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-xl font-semibold text-emerald-300">
+                            {displayName[0] || "P"}
+                          </div>
+                        )}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-xs font-semibold uppercase tracking-[0.3em] text-white opacity-0 transition group-hover:opacity-100">
+                          Edit
+                        </div>
+                        <input
+                          type="file"
+                          className="sr-only"
+                          accept="image/*"
+                          onChange={(event) => setProfileFile(event.target.files?.[0] || null)}
+                        />
+                      </label>
+                      <span className="text-xs text-white/60">Tap photo to update</span>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
+                          First Name
+                        </label>
+                        <Input
+                          value={profileForm.first_name}
+                          onChange={(event) => setProfileForm((prev) => ({ ...prev, first_name: event.target.value }))}
+                          className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
+                          Last Name
+                        </label>
+                        <Input
+                          value={profileForm.last_name}
+                          onChange={(event) => setProfileForm((prev) => ({ ...prev, last_name: event.target.value }))}
+                          className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
+                          Phone Number
+                        </label>
+                        <Input
+                          value={profileForm.phone_number}
+                          onChange={(event) => setProfileForm((prev) => ({ ...prev, phone_number: event.target.value }))}
+                          className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
+                          Age
+                        </label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={profileForm.age}
+                          onChange={(event) => setProfileForm((prev) => ({ ...prev, age: event.target.value }))}
+                          className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-300">
+                          Role
+                        </label>
+                        <select
+                          value={profileForm.role}
+                          onChange={(event) => setProfileForm((prev) => ({ ...prev, role: event.target.value }))}
+                          className="h-10 w-full rounded-md border border-white/20 bg-black/30 px-3 text-sm text-white"
+                        >
+                          {roleOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Button
+                          type="submit"
+                          disabled={profileSaving}
+                          className="bg-orange-500 text-white hover:bg-orange-400"
+                        >
+                          {profileSaving ? "Saving..." : "Save Changes"}
+                        </Button>
+                      </div>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
             <Card className={glassCard}>
               <CardHeader>
                 <CardTitle className="text-white">Upcoming Matches</CardTitle>
@@ -629,6 +893,10 @@ export default function PlayerHome() {
             </Card>
           )}
 
+          <div className="hidden md:block">
+            {renderMediaSection()}
+          </div>
+
           <Card className={glassCard}>
             <CardHeader>
               <CardTitle className="text-white">Lineups</CardTitle>
@@ -747,87 +1015,7 @@ export default function PlayerHome() {
         </Card>
       )}
 
-      {activeTab === "media" && (
-        <Card className={glassCard}>
-          <CardHeader>
-            <CardTitle className="text-white">Media</CardTitle>
-            <CardDescription className="text-white/60">Upload moments from training and matches.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleUpload} className="grid gap-4 md:grid-cols-[1.1fr_0.8fr_1fr_auto] md:items-end">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white">Title</label>
-                <Input
-                  value={uploadForm.title}
-                  onChange={(event) => setUploadForm({ ...uploadForm, title: event.target.value })}
-                  placeholder="e.g. Net session highlights"
-                  className="border-white/20 bg-black/30 text-white placeholder:text-white/40"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white">Media Type</label>
-                <select
-                  className="h-10 w-full rounded-md border border-white/20 bg-black/30 px-3 text-sm text-white"
-                  value={uploadForm.media_type}
-                  onChange={(event) => setUploadForm({ ...uploadForm, media_type: event.target.value })}
-                >
-                  <option value="photo">Photo</option>
-                  <option value="video">Video</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-white">File</label>
-                <input
-                  className="block w-full text-sm text-white file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-white/20"
-                  type="file"
-                  accept={uploadForm.media_type === "video" ? "video/*" : "image/*"}
-                  onChange={(event) => setUploadForm({ ...uploadForm, file: event.target.files?.[0] || null })}
-                />
-              </div>
-              <Button type="submit" disabled={uploading} className="gap-2 bg-orange-500 text-white hover:bg-orange-400">
-                <Upload className="h-4 w-4" />
-                {uploading ? "Uploading..." : "Upload"}
-              </Button>
-            </form>
-
-            {uploadForm.file && (
-              <div className="mt-4 flex items-center gap-3 text-xs text-white/60">
-                <ImageIcon className="h-4 w-4" />
-                Selected: {uploadForm.file?.name}
-              </div>
-            )}
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {recentMedia.length === 0 ? (
-                <div className="text-sm text-white/60">No recent media yet.</div>
-              ) : (
-                recentMedia.map((item) => {
-                  const mediaType = (item.media_type || "").toLowerCase();
-                  const src = normalizeUrl(item.file);
-                  return (
-                    <div key={item.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                      <div className="h-40 w-full bg-black/40">
-                        {mediaType === "video" ? (
-                          <video className="h-full w-full object-cover" src={src} />
-                        ) : (
-                          <img className="h-full w-full object-cover" src={src} alt={item.title || "Media"} />
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <p className="text-sm font-medium text-white">{item.title || "Untitled"}</p>
-                        <p className="text-xs text-white/60">
-                          {formatDate(item.uploaded_at)} • {item.media_type || "Media"}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {activeTab === "media" && renderMediaSection()}
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-[#0B0F1A]/90 px-4 py-2 shadow-[0_-12px_30px_-20px_rgba(18,24,32,0.7)] backdrop-blur md:hidden">
         <div className="flex items-center justify-between">

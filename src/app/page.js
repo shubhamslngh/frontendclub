@@ -118,8 +118,8 @@ export default function Home() {
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[url('/dayStadium.jpg')] bg-cover bg-center opacity-30" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,107,0,0.20),transparent_60%)]" />
-        <div className="absolute -left-24 top-24 h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.12),transparent_65%)] blur-2xl" />
-        <div className="absolute right-[-120px] top-0 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_top,rgba(0,180,216,0.10),transparent_65%)] blur-2xl" />
+        <div className="absolute -left-24 top-24 h-105 w-105 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,215,0,0.12),transparent_65%)] blur-2xl" />
+        <div className="absolute -right-30 top-0 h-130 w-130 rounded-full bg-[radial-gradient(circle_at_top,rgba(0,180,216,0.10),transparent_65%)] blur-2xl" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(0,0,0,0.0),rgba(0,0,0,0.65))]" />
       </div>
 
