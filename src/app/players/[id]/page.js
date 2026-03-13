@@ -112,7 +112,7 @@ export default function PlayerProfilePage() {
                         src={imageUrl}
                         alt={fullName || "Player"}
                         fill
-                        className="object-cover grayscale opacity-90 transition duration-500 hover:grayscale-0 hover:opacity-100"
+                        className="object-cover opacity-90 transition duration-500 hover:grayscale-0 hover:opacity-100"
                         sizes="(max-width: 1024px) 100vw, 50vw"
                         priority
                       />
