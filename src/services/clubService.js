@@ -7,6 +7,8 @@ export const clubService = {
     return response.data;
   },
   register: (data) => apiClient.post('api/auth/register/', data),
+  getPendingRegistrations: () => apiClient.get('api/auth/registrations/'),
+  approveRegistration: (id) => apiClient.post(`api/auth/registrations/${id}/approve/`),
   getPlayerDashboard: () => apiClient.get('api/auth/dashboard/'),
 
   // 2. Players
@@ -51,6 +53,7 @@ deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
   deleteMedia: (id) => apiClient.delete(`api/media/${id}/`),
   // 5. Transactions (Financials)
   getTransactions: () => apiClient.get('api/transactions/'),
+  generateMonthlyInvoices: (data = {}) => apiClient.post('api/financials/generate-monthly-invoices/', data),
   initiatePayment: (transactionId) => apiClient.post('api/financials/initiate-payment/', { transaction_id: transactionId }),
   checkPaymentStatus: (merchantTransactionId) =>
     apiClient.post('api/financials/payment-callback/', { merchantTransactionId: merchantTransactionId }),

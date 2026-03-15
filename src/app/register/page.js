@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registrationPending, setRegistrationPending] = useState(false);
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -73,40 +74,12 @@ export default function RegisterPage() {
         password: formData.password,
       };
       const data = await clubService.register(payload);
-        const accessToken = data?.access || data?.token;
-        if (accessToken) {
-          localStorage.setItem("club_token", accessToken);
-          if (data.refresh) {
-            localStorage.setItem("club_refresh_token", data.refresh);
-          }
-        const displayName =
-          [data.first_name, data.last_name].filter(Boolean).join(" ").trim() ||
-          data.full_name ||
-          data.name ||
-          data.username ||
-          data.phone_number ||
-          formData.phone_number;
-        localStorage.setItem("club_user_name", displayName);
-        if (data.role) {
-          localStorage.setItem("club_user_role", data.role);
-        }
-        if (data.player_id !== undefined && data.player_id !== null) {
-          localStorage.setItem("club_player_id", String(data.player_id));
-        }
-        if (data.player_role) {
-          localStorage.setItem("club_player_role", data.player_role);
-        }
-        const dashboardUrl =
-          data.dashboard_url && !data.dashboard_url.startsWith("/api/")
-            ? data.dashboard_url
-            : null;
-        if (dashboardUrl) {
-          localStorage.setItem("club_dashboard_url", dashboardUrl);
-        }
-        const fallback = data.role === "player" ? "/" : "/dashboard";
-        router.push(dashboardUrl || fallback);
+
+      if (data?.status === "pending_approval") {
+        setRegistrationPending(true);
+        toast.success("Registration submitted. Waiting for admin approval.");
       } else {
-        toast.success("Registration successful! Please login.");
+        toast.success("Registration submitted. Please wait for admin approval.");
         router.push("/login");
       }
     } catch (error) {
@@ -193,12 +166,55 @@ export default function RegisterPage() {
 
             <section className={`${glassCard} p-8`}>
               <div className="mb-6">
-                <p className={`text-2xl uppercase ${displayFont.className}`}>Create Account</p>
+                <p className={`text-2xl uppercase ${displayFont.className}`}>
+                  {registrationPending ? "Approval Pending" : "Create Account"}
+                </p>
                 <p className="mt-2 text-sm text-white/60">
-                  Use your phone number to create your player account.
+                  {registrationPending
+                    ? "Your registration request has been sent to the admin. Your account will be created after approval."
+                    : "Use your phone number to request your player account."}
                 </p>
               </div>
 
+              {registrationPending ? (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
+                    Your request for <span className="font-semibold">{formData.first_name} {formData.last_name}</span> has been sent for review.
+                    You will be able to sign in after an admin approves your registration.
+                  </div>
+                  <div className="grid gap-3 text-sm text-white/70">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      Phone Number: {formData.phone_number}
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3">
+                      Next step: wait for approval, then sign in from the login page.
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      href="/login"
+                      className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
+                    >
+                      Go to Login
+                    </Link>
+                    <button
+                      type="button"
+                      className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                      onClick={() => {
+                        setRegistrationPending(false);
+                        setFormData({
+                          first_name: "",
+                          last_name: "",
+                          phone_number: "",
+                          password: "",
+                        });
+                      }}
+                    >
+                      Submit Another Request
+                    </button>
+                  </div>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (
                   <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -262,9 +278,10 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="w-full rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400 disabled:opacity-60"
                 >
-                  {loading ? "Registering..." : "Sign Up"}
+                  {loading ? "Submitting..." : "Request Approval"}
                 </button>
               </form>
+              )}
 
               <div className="mt-6 text-center text-sm">
                 <span className="text-white/60">Already have an account? </span>

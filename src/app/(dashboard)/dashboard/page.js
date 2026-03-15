@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   Users, Trophy, CalendarDays, IndianRupee, ArrowUpRight, 
-  Activity, ArrowRight, ShieldCheck 
+  Activity, ArrowRight, ShieldCheck, AlertTriangle, MapPin, ReceiptText, UserRoundPlus
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ export default function DashboardOverview() {
     activeMembers: 0,
     teamCount: 0,
     upcomingMatches: [],
+    pendingResults: [],
+    pendingRegistrations: [],
     recentTransactions: [],
     pendingInvoices: [],
     totalRevenue: 0,
@@ -27,83 +29,96 @@ export default function DashboardOverview() {
     playerMap: {}
   });
   const [loading, setLoading] = useState(true);
+  const [generatingInvoices, setGeneratingInvoices] = useState(false);
+  const [approvingRegistrationId, setApprovingRegistrationId] = useState(null);
+
+  const loadDashboardData = async () => {
+    try {
+      // Fetch all data in parallel
+      const [playersRes, teamsRes, matchesRes, financeRes, groundsRes, registrationsRes] = await Promise.all([
+        clubService.getPlayers(),
+        clubService.getTeams(),
+        clubService.getMatches(),
+        clubService.getTransactions(),
+        clubService.getGrounds(),
+        clubService.getPendingRegistrations()
+      ]);
+
+      const players = playersRes.data;
+      const matches = matchesRes.data;
+      const transactions = financeRes.data;
+      const grounds = groundsRes.data;
+      const pendingRegistrations = Array.isArray(registrationsRes.data) ? registrationsRes.data : [];
+
+      // 1. Player Stats
+      const activeMembers = players.filter(p => p.membership_active).length;
+
+      // 2. Match Stats (Filter for future dates)
+      const now = new Date();
+      const groundMap = {};
+      grounds.forEach((ground) => {
+        groundMap[ground.id] = ground.name;
+      });
+
+      const teamMap = {};
+      teamsRes.data.forEach((team) => {
+        teamMap[team.id] = team.name;
+      });
+      const playerMap = {};
+      players.forEach((player) => {
+        playerMap[player.id] = `${player.first_name} ${player.last_name}`;
+      });
+
+      const upcoming = matches
+        .filter(m => new Date(m.date) > now)
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 3); // Get next 3 matches
+
+      const pendingResults = matches
+        .filter((m) => {
+          const matchDate = new Date(m.date);
+          return matchDate <= now && !m.result && !m.winner;
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      // 3. Finance Stats (Sum of all paid transactions)
+      const revenue = transactions
+        .filter(t => t.paid)
+        .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+      
+      // Get last 4 transactions for the list
+      const recentTx = transactions
+        .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
+        .slice(0, 4);
+
+      // Filter pending invoices (Assuming API returns all. Ideally backend filters for user)
+      // For now, displaying all unpaid transactions as "Pending Dues"
+      const pending = transactions
+        .filter(t => !t.paid)
+        .sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
+
+      setStats({
+        playerCount: players.length,
+        activeMembers,
+        teamCount: teamsRes.data.length,
+        upcomingMatches: upcoming,
+        pendingResults,
+        pendingRegistrations,
+        recentTransactions: recentTx,
+        pendingInvoices: pending,
+        totalRevenue: revenue,
+        groundMap,
+        teamMap,
+        playerMap
+      });
+    } catch (error) {
+      console.error("Dashboard Load Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        // Fetch all data in parallel
-        const [playersRes, teamsRes, matchesRes, financeRes, groundsRes] = await Promise.all([
-          clubService.getPlayers(),
-          clubService.getTeams(),
-          clubService.getMatches(),
-          clubService.getTransactions(),
-          clubService.getGrounds()
-        ]);
-
-        const players = playersRes.data;
-        const matches = matchesRes.data;
-        const transactions = financeRes.data;
-        const grounds = groundsRes.data;
-
-        // 1. Player Stats
-        const activeMembers = players.filter(p => p.membership_active).length;
-
-        // 2. Match Stats (Filter for future dates)
-        const now = new Date();
-        const groundMap = {};
-        grounds.forEach((ground) => {
-          groundMap[ground.id] = ground.name;
-        });
-
-        const teamMap = {};
-        teamsRes.data.forEach((team) => {
-          teamMap[team.id] = team.name;
-        });
-        const playerMap = {};
-        players.forEach((player) => {
-          playerMap[player.id] = `${player.first_name} ${player.last_name}`;
-        });
-
-        const upcoming = matches
-          .filter(m => new Date(m.date) > now)
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .slice(0, 3); // Get next 3 matches
-
-        // 3. Finance Stats (Sum of all paid transactions)
-        const revenue = transactions
-          .filter(t => t.paid)
-          .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-        
-        // Get last 4 transactions for the list
-        const recentTx = transactions
-          .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
-          .slice(0, 4);
-
-        // Filter pending invoices (Assuming API returns all. Ideally backend filters for user)
-        // For now, displaying all unpaid transactions as "Pending Dues"
-        const pending = transactions
-          .filter(t => !t.paid)
-          .sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
-
-        setStats({
-          playerCount: players.length,
-          activeMembers,
-          teamCount: teamsRes.data.length,
-          upcomingMatches: upcoming,
-          recentTransactions: recentTx,
-          pendingInvoices: pending,
-          totalRevenue: revenue,
-          groundMap,
-          teamMap,
-          playerMap
-        });
-      } catch (error) {
-        console.error("Dashboard Load Error:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadDashboardData();
   }, []);
 
@@ -152,6 +167,49 @@ export default function DashboardOverview() {
     }
   };
 
+  const handleGenerateMonthlyInvoices = async () => {
+    const toastId = toast.loading("Generating monthly membership invoices...");
+    try {
+      setGeneratingInvoices(true);
+      const res = await clubService.generateMonthlyInvoices();
+      const data = res.data || {};
+      const billingDate = data.billing_date
+        ? format(new Date(data.billing_date), "MMMM yyyy")
+        : "this month";
+
+      toast.success(
+        `Invoices generated for ${billingDate}: ${data.created_invoices || 0} created, ${data.skipped_existing || 0} skipped.`,
+        { id: toastId }
+      );
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Monthly invoice generation failed:", error);
+      toast.error(
+        getErrorMessage(error, "Could not generate monthly invoices."),
+        { id: toastId }
+      );
+    } finally {
+      setGeneratingInvoices(false);
+    }
+  };
+
+  const handleApproveRegistration = async (registration) => {
+    const fullName = [registration.first_name, registration.last_name].filter(Boolean).join(" ").trim();
+    const toastId = toast.loading(`Approving ${fullName || registration.phone_number}...`);
+
+    try {
+      setApprovingRegistrationId(registration.id);
+      await clubService.approveRegistration(registration.id);
+      toast.success(`${fullName || registration.phone_number} approved successfully.`, { id: toastId });
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Failed to approve registration:", error);
+      toast.error(getErrorMessage(error, "Could not approve registration."), { id: toastId });
+    } finally {
+      setApprovingRegistrationId(null);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading Dashboard...</div>;
   }
@@ -162,9 +220,18 @@ export default function DashboardOverview() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your club's performance today.</p>
+          <p className="text-muted-foreground">Overview of your club&apos;s performance today.</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <Button
+            variant="outline"
+            className="w-full gap-2 sm:w-auto"
+            onClick={handleGenerateMonthlyInvoices}
+            disabled={generatingInvoices}
+          >
+            <ReceiptText className="h-4 w-4" />
+            {generatingInvoices ? "Generating..." : "Generate Monthly Fee"}
+          </Button>
           <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href="/matches">Schedule Match</Link>
           </Button>
@@ -173,6 +240,126 @@ export default function DashboardOverview() {
           </Button>
         </div>
       </div>
+
+      {stats.pendingRegistrations.length > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-blue-100 p-2 text-blue-700">
+                  <UserRoundPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-blue-900">Pending Player Registrations</CardTitle>
+                  <CardDescription className="mt-1 text-blue-700">
+                    {stats.pendingRegistrations.length} registration{stats.pendingRegistrations.length === 1 ? "" : "s"} waiting for admin approval.
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge className="w-fit bg-blue-600 hover:bg-blue-600">
+                {stats.pendingRegistrations.length} Pending
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stats.pendingRegistrations.slice(0, 5).map((registration) => {
+              const fullName = [registration.first_name, registration.last_name].filter(Boolean).join(" ").trim();
+              const requestedAt = registration.created_at || registration.requested_at || registration.date_created;
+
+              return (
+                <div
+                  key={registration.id}
+                  className="flex flex-col gap-4 rounded-lg border border-blue-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">{fullName || "Unnamed Request"}</p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <span>{registration.phone_number}</span>
+                      {requestedAt && (
+                        <span className="inline-flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5 text-blue-600" />
+                          {format(new Date(requestedAt), "MMM d, yyyy h:mm a")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => handleApproveRegistration(registration)}
+                    disabled={approvingRegistrationId === registration.id}
+                  >
+                    {approvingRegistrationId === registration.id ? "Approving..." : "Approve Registration"}
+                  </Button>
+                </div>
+              );
+            })}
+            {stats.pendingRegistrations.length > 5 && (
+              <p className="text-xs text-blue-700">
+                +{stats.pendingRegistrations.length - 5} more pending registration{stats.pendingRegistrations.length - 5 === 1 ? "" : "s"}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.pendingResults.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-amber-100 p-2 text-amber-700">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-amber-800">Past Matches Need Results</CardTitle>
+                  <CardDescription className="mt-1 text-amber-700">
+                    {stats.pendingResults.length} past {stats.pendingResults.length === 1 ? "match is" : "matches are"} still missing a result. Update them from the matches page.
+                  </CardDescription>
+                </div>
+              </div>
+              <Button className="w-full sm:w-auto" asChild>
+                <Link href="/matches">Set Match Results</Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stats.pendingResults.slice(0, 3).map((match) => {
+              const opponentLabel = match.external_opponent
+                ? `${stats.teamMap[match.team1] || "Team 1"} vs ${match.external_opponent}`
+                : `${stats.teamMap[match.team1] || "Team 1"} vs ${stats.teamMap[match.team2] || "Team 2"}`;
+
+              return (
+                <div
+                  key={match.id}
+                  className="flex flex-col gap-3 rounded-lg border border-amber-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">{opponentLabel}</p>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="h-3.5 w-3.5 text-amber-600" />
+                        {format(new Date(match.date), "MMM d, yyyy h:mm a")}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5 text-amber-600" />
+                        {stats.groundMap[match.ground] || `Ground #${match.ground}`}
+                      </span>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="w-fit border-amber-300 text-amber-800">
+                    Result Pending
+                  </Badge>
+                </div>
+              );
+            })}
+            {stats.pendingResults.length > 3 && (
+              <p className="text-xs text-amber-700">
+                +{stats.pendingResults.length - 3} more pending result{stats.pendingResults.length - 3 === 1 ? "" : "s"}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Top Stats Row */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

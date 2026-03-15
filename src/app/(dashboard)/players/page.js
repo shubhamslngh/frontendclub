@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Search, Plus, Trophy, Users, Phone } from "lucide-react";
+import { Search, Plus, Trophy, Users, Phone, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState([]);
@@ -17,6 +18,7 @@ export default function PlayersPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => { loadPlayers(); }, []);
   const handleEdit = (player) => {
@@ -30,6 +32,28 @@ export default function PlayersPage() {
       setPlayers(res.data);
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
+  };
+
+  const handleDelete = async (player) => {
+    const playerName = `${player.first_name} ${player.last_name}`.trim();
+    const confirmed = window.confirm(`Delete ${playerName || `player #${player.id}`}?`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(player.id);
+      await clubService.deletePlayer(player.id);
+      toast.success("Player deleted.");
+      if (selectedPlayer?.id === player.id) {
+        setSelectedPlayer(null);
+        setIsModalOpen(false);
+      }
+      await loadPlayers();
+    } catch (error) {
+      console.error("Failed to delete player", error);
+      toast.error("Delete failed. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const filteredPlayers = players.filter(p => 
@@ -80,14 +104,26 @@ export default function PlayersPage() {
                     <div className="font-semibold text-slate-900">{player.first_name} {player.last_name}</div>
                     <div className="text-xs text-muted-foreground italic">ID: #{player.id}</div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs border"
-                    onClick={() => handleEdit(player)}
-                  >
-                    Manage
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs border"
+                      onClick={() => handleEdit(player)}
+                    >
+                      Manage
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 border text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                      onClick={() => handleDelete(player)}
+                      disabled={deletingId === player.id}
+                    >
+                      <Trash2 className="mr-1 h-3 w-3" />
+                      {deletingId === player.id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
@@ -221,14 +257,26 @@ export default function PlayersPage() {
                     <a href={`tel:${player.phone_number}`} className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
                       <Phone className="h-3 w-3" /> {player.phone_number}
                     </a>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-7 text-xs border"
-                      onClick={() => handleEdit(player)}
-                    >
-                      Manage
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-xs border"
+                        onClick={() => handleEdit(player)}
+                      >
+                        Manage
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs border text-red-600 hover:bg-red-50 hover:text-red-700"
+                        onClick={() => handleDelete(player)}
+                        disabled={deletingId === player.id}
+                      >
+                        <Trash2 className="mr-1 h-3 w-3" />
+                        {deletingId === player.id ? "Deleting..." : "Delete"}
+                      </Button>
+                    </div>
                   </div>
                 </TableCell>
               </TableRow>

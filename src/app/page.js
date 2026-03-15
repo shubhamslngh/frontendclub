@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
+import { CalendarDays, CircleDot, MapPin, Shield, Trophy } from "lucide-react";
 import MediaGallery from "@/components/ui/MediaGallery";
 import HomeHeaderActions from "@/components/ui/HomeHeaderActions";
 import HomeKpis from "@/components/ui/HomeKpis";
@@ -54,11 +55,46 @@ const products = [
   { title: "Training Tools", detail: "Cones, targets, and fitness tools to level up." },
 ];
 
+const BALL_TYPE_META = {
+  whiteleather: {
+    label: "White Ball",
+    accent: "text-slate-100",
+    badge: "border-slate-200/30 bg-slate-100/10 text-slate-100",
+    iconClassName: "fill-current text-slate-100",
+  },
+  redleather: {
+    label: "Red Ball",
+    accent: "text-red-300",
+    badge: "border-red-400/30 bg-red-500/10 text-red-200",
+    iconClassName: "fill-current text-red-400",
+  },
+  tennis: {
+    label: "Tennis Ball",
+    accent: "text-lime-300",
+    badge: "border-lime-400/30 bg-lime-500/10 text-lime-200",
+    iconClassName: "text-lime-300",
+  },
+  other: {
+    label: "Match Ball",
+    accent: "text-orange-300",
+    badge: "border-orange-400/30 bg-orange-500/10 text-orange-200",
+    iconClassName: "text-orange-300",
+  },
+};
+
+const BALL_TYPE_ICON = {
+  whiteleather: CircleDot,
+  redleather: CircleDot,
+  tennis: CircleDot,
+  other: CircleDot,
+};
+
 export default function Home() {
   const [results, setResults] = useState([]);
   const [resultsLoading, setResultsLoading] = useState(true);
   const [teamMap, setTeamMap] = useState({});
   const [groundMap, setGroundMap] = useState({});
+  const [hasToken, setHasToken] = useState(false);
 
   // Reusable styles for IPL-style consistency
   const sectionWrap = "mx-auto w-full max-w-7xl px-6";
@@ -77,6 +113,15 @@ export default function Home() {
       year: "numeric",
     });
   };
+  const getTeamName = (teamId) => {
+    if (!teamId) return "TBD";
+    return teamMap[teamId] || `Team #${teamId}`;
+  };
+  const getBallTypeMeta = (ballType) => BALL_TYPE_META[ballType] || BALL_TYPE_META.other;
+
+  useEffect(() => {
+    setHasToken(Boolean(localStorage.getItem("club_token")));
+  }, []);
 
   useEffect(() => {
     const loadResults = async () => {
@@ -181,20 +226,22 @@ export default function Home() {
                   facilities, we build skills, confidence, and team spirit every day.
                 </p>
 
-                <div className="flex flex-wrap gap-4">
-                  <Link
-                    href="#contact"
-                    className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
-                  >
-                    Join Us Now
-                  </Link>
-                  <Link
-                    href="#services"
-                    className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
-                  >
-                    View Services
-                  </Link>
-                </div>
+                {!hasToken && (
+                  <div className="flex flex-wrap gap-4">
+                    <Link
+                      href="#contact"
+                      className="rounded-full bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-400"
+                    >
+                      Join Us Now
+                    </Link>
+                    <Link
+                      href="#services"
+                      className="rounded-full border border-white/20 px-6 py-3 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+                    >
+                      View Services
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {/* Right-side feature cards (glass, not white) */}
@@ -257,31 +304,83 @@ export default function Home() {
           ) : (
             <div className="mt-10 flex gap-6 overflow-x-auto pb-4">
               {results.map((match) => {
-                const team1 = teamMap[match.team1] || `Team #${match.team1}`;
-                const team2 = teamMap[match.team2] || `Team #${match.team2}`;
+                const team1 = getTeamName(match.team1);
+                const team2 = getTeamName(match.team2);
                 const ground = groundMap[match.ground] || `Ground #${match.ground}`;
+                const winnerName = match.winner ? getTeamName(match.winner) : null;
+                const ballMeta = getBallTypeMeta(match.ball_type);
+                const BallIcon = BALL_TYPE_ICON[match.ball_type] || BALL_TYPE_ICON.other;
+                const matchTitle = match.external_opponent
+                  ? `${team1} vs ${match.external_opponent}`
+                  : `${team1} vs ${team2}`;
+                const resultText = match.result || (winnerName ? `${winnerName} won` : "Completed");
                 return (
                   <div
                     key={match.id}
-                    className={`${glassCard} min-w-[260px] p-6 sm:min-w-[320px]`}
+                    className={`${glassCard} min-w-[280px] overflow-hidden border-white/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(0,0,0,0.34))] p-0 sm:min-w-[340px]`}
                   >
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300">
-                      Result
-                    </p>
-                    <div className={`mt-4 text-2xl uppercase ${displayFont.className}`}>
-                      {match.external_opponent
-                        ? `vs ${match.external_opponent}`
-                        : `${team1} vs ${team2}`}
+                    <div className="border-b border-white/10 bg-black/20 px-6 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-orange-300">
+                           Result
+                        </p>
+                        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                          Final
+                        </span>
+                      </div>
                     </div>
-                    <p className="mt-2 text-xs text-white/60">
-                      {formatDate(match.date)} • {ground}
-                    </p>
-                    <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm text-white/80">
-                      {match.result || (match.winner ? `${teamMap[match.winner] || `Team #${match.winner}`} won` : "Completed")}
-                    </div>
-                    <div className="mt-6 flex items-center justify-between text-xs text-white/60">
-                      <span>{match.ball_type ? match.ball_type.replace("_", " ") : "Match"}</span>
-                      <span>{match.team_dress || "Official"}</span>
+
+                    <div className="space-y-5 p-6">
+                      <div>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <h3 className={`text-3xl uppercase leading-none ${displayFont.className}`}>
+                              {matchTitle}
+                            </h3>
+                            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-white/60">
+                              <span className="inline-flex items-center gap-1.5">
+                                <CalendarDays className="h-3.5 w-3.5 text-orange-300" />
+                                {formatDate(match.date)}
+                              </span>
+                              <span className="inline-flex items-center gap-1.5">
+                                <MapPin className="h-3.5 w-3.5 text-sky-300" />
+                                {ground}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${ballMeta.badge}`}>
+                            <BallIcon className={`h-3.5 w-3.5 ${ballMeta.iconClassName}`} />
+                            {ballMeta.label}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="rounded-[1.35rem] border border-white/10 bg-black/35 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 rounded-full bg-orange-500/15 p-2">
+                            <Trophy className="h-4 w-4 text-orange-300" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/50">
+                              Match Summary
+                            </p>
+                            {/* <p className="mt-2 text-sm leading-6 text-white/85">
+                              {resultText}
+                            </p> */}
+                            {winnerName && (
+                              <p className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-emerald-300">
+                                <Shield className="h-3.5 w-3.5" />
+                                Winner: {winnerName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-4 text-xs text-white/60">
+                        <span className="truncate">{match.team_dress || "Official Club Kit"}</span>
+                        <span className={`font-medium ${ballMeta.accent}`}>{match.external_opponent ? "External Fixture" : "Club Fixture"}</span>
+                      </div>
                     </div>
                   </div>
                 );
