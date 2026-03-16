@@ -50,9 +50,11 @@ deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
     apiClient.post('api/media/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  approveMedia: (id) => apiClient.post(`api/media/${id}/approve/`),
   deleteMedia: (id) => apiClient.delete(`api/media/${id}/`),
   // 5. Transactions (Financials)
   getTransactions: () => apiClient.get('api/transactions/'),
+  updateTransaction: (id, data) => apiClient.patch(`api/transactions/${id}/`, data),
   generateMonthlyInvoices: (data = {}) => apiClient.post('api/financials/generate-monthly-invoices/', data),
   initiatePayment: (transactionId) => apiClient.post('api/financials/initiate-payment/', { transaction_id: transactionId }),
   checkPaymentStatus: (merchantTransactionId) =>
