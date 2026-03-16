@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { 
   Users, Trophy, CalendarDays, IndianRupee, ArrowUpRight, 
-  Activity, ArrowRight, ShieldCheck, AlertTriangle, MapPin, ReceiptText, UserRoundPlus, ImageIcon, CheckCircle2
+  Activity, ArrowRight, ShieldCheck, AlertTriangle, MapPin, ReceiptText, UserRoundPlus, ImageIcon, CheckCircle2, ChevronDown
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -420,75 +420,87 @@ export default function DashboardOverview() {
 
       {stats.pendingMedia.length > 0 && (
         <Card className="border-emerald-200 bg-emerald-50">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-emerald-100 p-2 text-emerald-700">
-                  <ImageIcon className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-emerald-900">Pending Media Uploads</CardTitle>
-                  <CardDescription className="mt-1 text-emerald-700">
-                    {stats.pendingMedia.length} media upload{stats.pendingMedia.length === 1 ? "" : "s"} waiting for approval before appearing publicly.
-                  </CardDescription>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full sm:w-auto" asChild>
-                <Link href="/media">Open Media Library</Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {stats.pendingMedia.slice(0, 5).map((item) => {
-              const mediaLabel = item.title || item.file_name || `Media #${item.id}`;
-              const mediaType = (item.media_type || "media").toLowerCase();
-              const previewUrl = normalizeMediaUrl(item.file);
-              const uploadedAt = item.uploaded_at || item.created_at;
-
-              return (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="h-16 w-20 overflow-hidden rounded-md border border-emerald-100 bg-emerald-50">
-                      {mediaType === "video" ? (
-                        <video className="h-full w-full object-cover" src={previewUrl} />
-                      ) : (
-                        <img className="h-full w-full object-cover" src={previewUrl} alt={mediaLabel} />
-                      )}
+          <details className="group" open>
+            <summary className="cursor-pointer list-none">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full bg-emerald-100 p-2 text-emerald-700">
+                      <ImageIcon className="h-5 w-5" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="font-medium text-slate-900">{mediaLabel}</p>
-                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                        <Badge variant="outline" className="capitalize">{mediaType}</Badge>
-                        <span>{getMediaUploaderName(item)}</span>
-                        {uploadedAt && (
-                          <span className="inline-flex items-center gap-1">
-                            <CalendarDays className="h-3.5 w-3.5 text-emerald-600" />
-                            {format(new Date(uploadedAt), "MMM d, yyyy h:mm a")}
-                          </span>
-                        )}
-                      </div>
+                    <div>
+                      <CardTitle className="text-emerald-900">Pending Media Uploads</CardTitle>
+                      <CardDescription className="mt-1 text-emerald-700">
+                        {stats.pendingMedia.length} media upload{stats.pendingMedia.length === 1 ? "" : "s"} waiting for approval before appearing publicly.
+                      </CardDescription>
                     </div>
                   </div>
-                  <Button
-                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
-                    onClick={() => handleApproveMedia(item)}
-                    disabled={approvingMediaId === item.id}
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    {approvingMediaId === item.id ? "Approving..." : "Approve"}
-                  </Button>
+                  <div className="flex items-center gap-3">
+                    <Badge className="w-fit bg-emerald-600 hover:bg-emerald-600">
+                      {stats.pendingMedia.length} Pending
+                    </Badge>
+                    <ChevronDown className="h-5 w-5 text-emerald-700 transition-transform group-open:rotate-180" />
+                  </div>
                 </div>
-              );
-            })}
-            {stats.pendingMedia.length > 5 && (
-              <p className="text-xs text-emerald-700">
-                +{stats.pendingMedia.length - 5} more pending media upload{stats.pendingMedia.length - 5 === 1 ? "" : "s"}.
-              </p>
-            )}
-          </CardContent>
+              </CardHeader>
+            </summary>
+            <CardContent className="space-y-3">
+              <div className="flex justify-end">
+                <Button variant="outline" className="w-full sm:w-auto" asChild>
+                  <Link href="/media">Open Media Library</Link>
+                </Button>
+              </div>
+              {stats.pendingMedia.slice(0, 5).map((item) => {
+                const mediaLabel = item.title || item.file_name || `Media #${item.id}`;
+                const mediaType = (item.media_type || "media").toLowerCase();
+                const previewUrl = normalizeMediaUrl(item.file);
+                const uploadedAt = item.uploaded_at || item.created_at;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-4 rounded-lg border border-emerald-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="h-16 w-20 overflow-hidden rounded-md border border-emerald-100 bg-emerald-50">
+                        {mediaType === "video" ? (
+                          <video className="h-full w-full object-cover" src={previewUrl} />
+                        ) : (
+                          <img className="h-full w-full object-cover" src={previewUrl} alt={mediaLabel} />
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-medium text-slate-900">{mediaLabel}</p>
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                          <Badge variant="outline" className="capitalize">{mediaType}</Badge>
+                          <span>{getMediaUploaderName(item)}</span>
+                          {uploadedAt && (
+                            <span className="inline-flex items-center gap-1">
+                              <CalendarDays className="h-3.5 w-3.5 text-emerald-600" />
+                              {format(new Date(uploadedAt), "MMM d, yyyy h:mm a")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+                      onClick={() => handleApproveMedia(item)}
+                      disabled={approvingMediaId === item.id}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      {approvingMediaId === item.id ? "Approving..." : "Approve"}
+                    </Button>
+                  </div>
+                );
+              })}
+              {stats.pendingMedia.length > 5 && (
+                <p className="text-xs text-emerald-700">
+                  +{stats.pendingMedia.length - 5} more pending media upload{stats.pendingMedia.length - 5 === 1 ? "" : "s"}.
+                </p>
+              )}
+            </CardContent>
+          </details>
         </Card>
       )}
 
@@ -555,55 +567,62 @@ export default function DashboardOverview() {
       {/* Pending Payments Section */}
       {stats.pendingInvoices.length > 0 && (
         <Card className="border-red-200 bg-red-50">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-start gap-3">
-                <div className="rounded-full bg-red-100 p-2 text-red-700">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div>
-                  <CardTitle className="text-red-700">Pending Payments</CardTitle>
-                  <CardDescription className="mt-1 text-red-600">
-                    {stats.pendingInvoices.length} payment{stats.pendingInvoices.length === 1 ? "" : "s"} still need settlement. Use cash settle when money has already been collected offline.
-                  </CardDescription>
-                </div>
-              </div>
-              <Badge variant="outline" className="w-fit border-red-300 bg-white text-red-700">
-                {stats.pendingInvoices.length} Pending
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {stats.pendingInvoices.map((t) => (
-                <div key={t.id} className="flex flex-col gap-4 rounded-lg bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start space-x-4">
-                    <div className="rounded-full bg-red-100 p-2 text-red-600">
-                      <IndianRupee className="h-5 w-5" />
+          <details className="group" open>
+            <summary className="cursor-pointer list-none">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="rounded-full bg-red-100 p-2 text-red-700">
+                      <ShieldCheck className="h-5 w-5" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="font-semibold text-gray-900">{getTransactionPlayerName(t)}</p>
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                        <span className="capitalize">{t.category ? t.category.replaceAll('_', ' ') : 'fee'}</span>
-                        <span>•</span>
-                        <span>Due: {formatTransactionDate(t.due_date || t.payment_date)}</span>
+                    <div>
+                      <CardTitle className="text-red-700">Pending Payments</CardTitle>
+                      <CardDescription className="mt-1 text-red-600">
+                        {stats.pendingInvoices.length} payment{stats.pendingInvoices.length === 1 ? "" : "s"} still need settlement. Use cash settle when money has already been collected offline.
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="w-fit border-red-300 bg-white text-red-700">
+                      {stats.pendingInvoices.length} Pending
+                    </Badge>
+                    <ChevronDown className="h-5 w-5 text-red-700 transition-transform group-open:rotate-180" />
+                  </div>
+                </div>
+              </CardHeader>
+            </summary>
+            <CardContent>
+              <div className="space-y-4">
+                {stats.pendingInvoices.map((t) => (
+                  <div key={t.id} className="flex flex-col gap-4 rounded-lg bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="rounded-full bg-red-100 p-2 text-red-600">
+                        <IndianRupee className="h-5 w-5" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-gray-900">{getTransactionPlayerName(t)}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                          <span className="capitalize">{t.category ? t.category.replaceAll('_', ' ') : 'fee'}</span>
+                          <span>•</span>
+                          <span>Due: {formatTransactionDate(t.due_date || t.payment_date)}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                      <span className="text-lg font-bold">₹{parseFloat(t.amount).toLocaleString()}</span>
+                      <Button
+                        onClick={() => handleSettleCashPayment(t)}
+                        disabled={settlingTransactionId === t.id}
+                        className="bg-red-600 text-white hover:bg-red-700"
+                      >
+                        {settlingTransactionId === t.id ? "Settling..." : "Settle"}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <span className="text-lg font-bold">₹{parseFloat(t.amount).toLocaleString()}</span>
-                    <Button
-                      onClick={() => handleSettleCashPayment(t)}
-                      disabled={settlingTransactionId === t.id}
-                      className="bg-red-600 text-white hover:bg-red-700"
-                    >
-                      {settlingTransactionId === t.id ? "Settling..." : "Settle"}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
+                ))}
+              </div>
+            </CardContent>
+          </details>
         </Card>
       )}
 

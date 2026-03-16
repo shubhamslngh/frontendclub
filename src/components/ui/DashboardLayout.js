@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { Bebas_Neue } from "next/font/google";
 import {
   Calendar,
   Image as ImageIcon,
@@ -18,6 +19,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Image from 'next/image';
+
+const displayFont = Bebas_Neue({
+  subsets: ["latin"],
+  weight: "400",
+});
+
 const navItems = [
   { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Players', href: '/players', icon: Users },
@@ -56,10 +63,34 @@ export default function DashboardLayout({ children }) {
   const SidebarContent = () => (
     <div className="flex flex-col h-full bg-radial-[at_20%_75%] from-stone-900 via-gray-900 to-black to-90% text-slate-50">
       <div className="p-6">
-        <h2 className="text-xl text-stone-100 bg-linear-to-l from-black from-10% via-black-500 via-30% to-gray-900 to-90%  shadow-md bg-black/90 font-bold rounded-sm p-2 tracking-tight flex items-center gap-2">
-          <Image src="/KK11-logo.webp" alt="KK Logo" width={50} height={50} className="inline-block"/>
-          KK Cricket
-        </h2>
+        <Link
+          href="/"
+
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative h-16 w-16 rounded-full bg-black flex items-center justify-center shadow-lg ring-2 ring-orange-500/40">
+
+              <Image
+                src="/KK11.png"
+                alt="KK Cricket Club"
+                width={60}
+                height={60}
+                className="object-cover"
+                priority
+              />
+            </div>
+
+            <div>
+              <p className={`text-3xl tracking-wide uppercase ${displayFont.className}`}>
+                KK11
+              </p>
+              <p className="text-xs uppercase tracking-[0.4em] text-orange-400">
+                Corporate League
+              </p>
+            </div>
+          </div>
+        </Link>
+
       </div>
       <ScrollArea className="flex-1 px-3">
         <div className="space-y-1">
