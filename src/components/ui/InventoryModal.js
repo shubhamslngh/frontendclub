@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
@@ -12,10 +13,17 @@ import {
 } from "@/components/ui/select";
 import { clubService } from "@/services/clubService";
 
+const INVENTORY_TYPE_OPTIONS = [
+  { value: "team_kit", label: "Team Kit" },
+  { value: "merchandise", label: "Merchandise" },
+];
+
 export default function InventoryModal({ open, onOpenChange, item, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [itemImage, setItemImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -56,6 +64,10 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
       const categoryId =
         item.category_detail?.id ??
         (typeof item.category === "object" ? item.category?.id : item.category);
+      const normalizedType = (item.type || "").trim().toLowerCase();
+      const type = INVENTORY_TYPE_OPTIONS.some((option) => option.value === normalizedType)
+        ? normalizedType
+        : "";
       setFormData({
         name: item.name || "",
         category: categoryId ?? "",
@@ -65,7 +77,7 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
         missing_quantity: item.missing_quantity ?? 0,
         destroyed_quantity: item.destroyed_quantity ?? 0,
         cost: item.cost || "",
-        type: item.type || "",
+        type,
         description: item.description || ""
       });
     } else {
@@ -84,11 +96,39 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
     }
   }, [item, open]);
 
+  useEffect(() => {
+    if (!itemImage) {
+      setImagePreview("");
+      return undefined;
+    }
+
+    const previewUrl = URL.createObjectURL(itemImage);
+    setImagePreview(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [itemImage]);
+
+  useEffect(() => {
+    if (!open) {
+      setItemImage(null);
+      setImagePreview("");
+    }
+  }, [open]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const normalizedType = formData.type.trim().toLowerCase();
+      const isValidType = INVENTORY_TYPE_OPTIONS.some(({ value }) => value === normalizedType);
+
+      if (!isValidType) {
+        toast.error("Please select a valid inventory type");
+        setLoading(false);
+        return;
+      }
+
       const toInt = (value) => {
         const parsed = parseInt(value, 10);
         return Number.isNaN(parsed) ? 0 : parsed;
@@ -120,7 +160,7 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
         distributed_quantity: distributed,
         missing_quantity: missing,
         destroyed_quantity: destroyed,
-        type: formData.type,
+        type: normalizedType,
         cost: formData.cost ? parseFloat(formData.cost) : 0,
         description: formData.description
       };
@@ -129,7 +169,15 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
         await clubService.updateInventoryItem(item.id, payload);
         toast.success("Item updated");
       } else {
-        await clubService.createInventoryItem(payload);
+        const createPayload = new FormData();
+        Object.entries(payload).forEach(([key, value]) => {
+          createPayload.append(key, value);
+        });
+        if (itemImage) {
+          createPayload.append("image", itemImage);
+        }
+
+        await clubService.createInventoryItem(createPayload);
         toast.success("New item added to inventory");
       }
       onSuccess();
@@ -144,7 +192,7 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[560px]">
         <DialogHeader>
           <DialogTitle>{item ? "Edit Item" : "Add New Inventory"}</DialogTitle>
         </DialogHeader>
@@ -198,11 +246,21 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
 
           <div className="space-y-2">
             <Label>Type</Label>
-            <Input
-              placeholder="e.g. Match, Practice, Protective"
+            <Select
               value={formData.type}
-              onChange={(e) => setFormData({...formData, type: e.target.value})}
-            />
+              onValueChange={(value) => setFormData({ ...formData, type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select inventory type" />
+              </SelectTrigger>
+              <SelectContent>
+                {INVENTORY_TYPE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -263,6 +321,30 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
               onChange={(e) => setFormData({...formData, description: e.target.value})}
             />
           </div>
+
+          {!item && (
+            <div className="space-y-3">
+              <Label>Item Image</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setItemImage(e.target.files?.[0] || null)}
+              />
+              {imagePreview && (
+                <div className="overflow-hidden rounded-2xl border bg-slate-50">
+                  <div className="relative aspect-[16/10] w-full">
+                    <Image
+                      src={imagePreview}
+                      alt="Selected inventory item preview"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <DialogFooter>
             <Button type="submit" disabled={loading} className="w-full">

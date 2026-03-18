@@ -20,6 +20,21 @@ const apiData = axios.create({
 const getAccessToken = () => localStorage.getItem('club_token');
 const getRefreshToken = () => localStorage.getItem('club_refresh_token');
 const setAccessToken = (token) => localStorage.setItem('club_token', token);
+const clearAuthStorage = () => {
+  localStorage.removeItem('club_token');
+  localStorage.removeItem('club_refresh_token');
+  localStorage.removeItem('club_user_name');
+  localStorage.removeItem('club_user_role');
+  localStorage.removeItem('club_dashboard_url');
+  localStorage.removeItem('club_player_id');
+  localStorage.removeItem('club_player_role');
+};
+
+const redirectToHome = () => {
+  if (typeof window === 'undefined') return;
+  clearAuthStorage();
+  window.location.href = '/';
+};
 
 // Interceptor to automatically add the Bearer token to every request
 apiClient.interceptors.request.use((config) => {
@@ -35,6 +50,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    if (error.response?.status === 404) {
+      redirectToHome();
+      return Promise.reject(error);
+    }
+
     if (!originalRequest || originalRequest._retry) {
       return Promise.reject(error);
     }
@@ -47,6 +67,7 @@ apiClient.interceptors.response.use(
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
+      redirectToHome();
       return Promise.reject(error);
     }
 
@@ -67,6 +88,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       refreshPromise = null;
+      redirectToHome();
       return Promise.reject(refreshError);
     }
   }

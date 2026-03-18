@@ -1,5 +1,12 @@
 import apiClient from '@/utiils/api';
 
+const getMultipartConfig = (data) =>
+  data instanceof FormData
+    ? {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }
+    : undefined;
+
 export const clubService = {
   // 1. Authentication
   login: async (phone_number, password) => {
@@ -40,8 +47,8 @@ deleteGround: (id) => apiClient.delete(`api/grounds/${id}/`),
 //inventory
 getInventory: () => apiClient.get('api/inventory-items/'),
 getInventoryCategories: () => apiClient.get('api/inventory-categories/'),
-createInventoryItem: (data) => apiClient.post('api/inventory-items/', data),
-updateInventoryItem: (id, data) => apiClient.put(`api/inventory-items/${id}/`, data),
+createInventoryItem: (data) => apiClient.post('api/inventory-items/', data, getMultipartConfig(data)),
+updateInventoryItem: (id, data) => apiClient.put(`api/inventory-items/${id}/`, data, getMultipartConfig(data)),
 deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
   // Media
   getMedia: () => apiClient.get('api/media/'),
