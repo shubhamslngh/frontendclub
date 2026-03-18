@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { normalizeMatchStatus } from "@/lib/matches";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 
@@ -84,7 +85,7 @@ export default function DashboardOverview() {
       const pendingResults = matches
         .filter((m) => {
           const matchDate = new Date(m.date);
-          return matchDate <= now && !m.result && !m.winner;
+          return matchDate <= now && normalizeMatchStatus(m) !== "completed";
         })
         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -660,7 +661,7 @@ export default function DashboardOverview() {
                         </p>
                       </div>
                     </div>
-                    <Badge variant="outline" className="w-fit">{match.result ? "Completed" : "Scheduled"}</Badge>
+                    <Badge variant="outline" className="w-fit capitalize">{normalizeMatchStatus(match).replace("_", " ")}</Badge>
                   </div>
                 ))
               )}

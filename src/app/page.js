@@ -4,11 +4,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Bebas_Neue, Space_Grotesk } from "next/font/google";
-import { CalendarDays, CircleDot, MapPin, Shield, Trophy } from "lucide-react";
+import { CalendarDays, MapPin, Shield, Trophy } from "lucide-react";
 import MediaGallery from "@/components/ui/MediaGallery";
 import HomeHeaderActions from "@/components/ui/HomeHeaderActions";
 import HomeKpis from "@/components/ui/HomeKpis";
 import { clubService } from "@/services/clubService";
+import {
+  getBallTypeMeta,
+  getComputedWinnerName,
+  getMatchFormatMeta,
+  getMatchResultText,
+  getMatchScore,
+  getMatchTitle,
+  normalizeMatchStatus,
+} from "@/lib/matches";
 
 const displayFont = Bebas_Neue({
   subsets: ["latin"],
@@ -55,40 +64,6 @@ const products = [
   { title: "Training Tools", detail: "Cones, targets, and fitness tools to level up." },
 ];
 
-const BALL_TYPE_META = {
-  whiteleather: {
-    label: "White Ball",
-    accent: "text-slate-100",
-    badge: "border-slate-200/30 bg-slate-100/10 text-slate-100",
-    iconClassName: "fill-current text-slate-100",
-  },
-  redleather: {
-    label: "Red Ball",
-    accent: "text-red-300",
-    badge: "border-red-400/30 bg-red-500/10 text-red-200",
-    iconClassName: "fill-current text-red-400",
-  },
-  tennis: {
-    label: "Tennis Ball",
-    accent: "text-lime-300",
-    badge: "border-lime-400/30 bg-lime-500/10 text-lime-200",
-    iconClassName: "text-lime-300",
-  },
-  other: {
-    label: "Match Ball",
-    accent: "text-orange-300",
-    badge: "border-orange-400/30 bg-orange-500/10 text-orange-200",
-    iconClassName: "text-orange-300",
-  },
-};
-
-const BALL_TYPE_ICON = {
-  whiteleather: CircleDot,
-  redleather: CircleDot,
-  tennis: CircleDot,
-  other: CircleDot,
-};
-
 export default function Home() {
   const [results, setResults] = useState([]);
   const [resultsLoading, setResultsLoading] = useState(true);
@@ -117,8 +92,6 @@ export default function Home() {
     if (!teamId) return "TBD";
     return teamMap[teamId] || `Team #${teamId}`;
   };
-  const getBallTypeMeta = (ballType) => BALL_TYPE_META[ballType] || BALL_TYPE_META.other;
-
   useEffect(() => {
     setHasToken(Boolean(localStorage.getItem("club_token")));
   }, []);
@@ -144,7 +117,7 @@ export default function Home() {
         });
         setGroundMap(gMap);
         const allMatches = Array.isArray(matchesRes.data) ? matchesRes.data : [];
-        const completed = allMatches.filter((match) => match.result || match.winner);
+        const completed = allMatches.filter((match) => normalizeMatchStatus(match) === "completed");
         const sorted = completed.sort((a, b) => new Date(b.date) - new Date(a.date));
         setResults(sorted.slice(0, 8));
       } catch (error) {
@@ -304,16 +277,14 @@ export default function Home() {
           ) : (
             <div className="mt-10 flex gap-6 overflow-x-auto pb-4">
               {results.map((match) => {
-                const team1 = getTeamName(match.team1);
-                const team2 = getTeamName(match.team2);
                 const ground = groundMap[match.ground] || `Ground #${match.ground}`;
-                const winnerName = match.winner ? getTeamName(match.winner) : null;
+                const winnerName = getComputedWinnerName(match, teamMap);
                 const ballMeta = getBallTypeMeta(match.ball_type);
-                const BallIcon = BALL_TYPE_ICON[match.ball_type] || BALL_TYPE_ICON.other;
-                const matchTitle = match.external_opponent
-                  ? `${team1} vs ${match.external_opponent}`
-                  : `${team1} vs ${team2}`;
-                const resultText = match.result || (winnerName ? `${winnerName} won` : "Completed");
+                const matchTitle = getMatchTitle(match, teamMap);
+                const resultText = getMatchResultText(match, teamMap);
+                const formatMeta = getMatchFormatMeta(match);
+                const team1Score = getMatchScore(match, 1);
+                const team2Score = getMatchScore(match, 2);
                 return (
                   <div
                     key={match.id}
@@ -346,10 +317,22 @@ export default function Home() {
                                 <MapPin className="h-3.5 w-3.5 text-sky-300" />
                                 {ground}
                               </span>
+                              {formatMeta && (
+                                <span className="inline-flex items-center gap-1.5 text-orange-200">
+                                  <Shield className="h-3.5 w-3.5 text-orange-300" />
+                                  {formatMeta}
+                                </span>
+                              )}
                             </div>
                           </div>
-                          <span className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] ${ballMeta.badge}`}>
-                            <BallIcon className={`h-3.5 w-3.5 ${ballMeta.iconClassName}`} />
+                          <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white">
+                            <Image
+                              src={ballMeta.image}
+                              alt={ballMeta.label}
+                              width={18}
+                              height={18}
+                              className="h-[18px] w-[18px] rounded-full object-cover"
+                            />
                             {ballMeta.label}
                           </span>
                         </div>
@@ -364,9 +347,17 @@ export default function Home() {
                             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/50">
                               Match Summary
                             </p>
-                            {/* <p className="mt-2 text-sm leading-6 text-white/85">
+                            <p className="mt-2 text-sm leading-6 text-white/85">
                               {resultText}
-                            </p> */}
+                            </p>
+                            {(team1Score || team2Score) && (
+                              <div className="mt-3 space-y-1 text-xs text-white/70">
+                                {team1Score && <p>{getTeamName(match.team1)}: {team1Score}</p>}
+                                {team2Score && (
+                                  <p>{match.external_opponent || getTeamName(match.team2)}: {team2Score}</p>
+                                )}
+                              </div>
+                            )}
                             {winnerName && (
                               <p className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-emerald-300">
                                 <Shield className="h-3.5 w-3.5" />
@@ -379,7 +370,7 @@ export default function Home() {
 
                       <div className="flex items-center justify-between gap-4 border-t border-white/10 pt-4 text-xs text-white/60">
                         <span className="truncate">{match.team_dress || "Official Club Kit"}</span>
-                        <span className={`font-medium ${ballMeta.accent}`}>{match.external_opponent ? "External Fixture" : "Club Fixture"}</span>
+                        <span className="font-medium text-orange-200">{match.external_opponent ? "External Fixture" : "Club Fixture"}</span>
                       </div>
                     </div>
                   </div>

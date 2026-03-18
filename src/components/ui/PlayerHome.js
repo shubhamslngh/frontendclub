@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import SquadCard from "@/components/ui/SquadCard";
+import { getStatusMeta, normalizeMatchStatus } from "@/lib/matches";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 
@@ -756,8 +757,8 @@ export default function PlayerHome() {
                               (match.ground ? groundMap[match.ground] || `Ground #${match.ground}` : "-")}
                           </p>
                         </div>
-                        <Badge variant="outline" className="border-white/20 text-white">
-                          {match.result ? "Completed" : "Scheduled"}
+                        <Badge variant="outline" className={`border-white/20 text-white capitalize ${getStatusMeta(normalizeMatchStatus(match)).className}`}>
+                          {getStatusMeta(normalizeMatchStatus(match)).label}
                         </Badge>
                       </div>
                     ))

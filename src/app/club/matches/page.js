@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bebas_Neue } from "next/font/google";
+import MatchCard from "@/components/ui/MatchCard";
 import { clubService } from "@/services/clubService";
-import { Badge } from "@/components/ui/badge";
+import { normalizeMatchStatus } from "@/lib/matches";
 
 const displayFont = Bebas_Neue({
   subsets: ["latin"],
@@ -12,25 +13,10 @@ const displayFont = Bebas_Neue({
   variable: "--font-display",
 });
 
-const formatDate = (value, withTime = false) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString(undefined, withTime ? {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  } : {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-};
-
 export default function PublicMatchesPage() {
   const [matches, setMatches] = useState([]);
   const [teamMap, setTeamMap] = useState({});
+  const [teamDetails, setTeamDetails] = useState({});
   const [groundMap, setGroundMap] = useState({});
   const [loading, setLoading] = useState(true);
   const glassCard =
@@ -44,18 +30,24 @@ export default function PublicMatchesPage() {
           clubService.getTeams(),
           clubService.getGrounds(),
         ]);
-        setMatches(Array.isArray(matchesRes.data) ? matchesRes.data : []);
+
         const tMap = {};
+        const tDetails = {};
+        const gMap = {};
+
         (teamsRes.data || []).forEach((team) => {
           if (!team?.id) return;
           tMap[team.id] = team.name || `Team #${team.id}`;
+          tDetails[team.id] = team;
         });
-        setTeamMap(tMap);
-        const gMap = {};
         (groundsRes.data || []).forEach((ground) => {
           if (!ground?.id) return;
           gMap[ground.id] = ground.name || `Ground #${ground.id}`;
         });
+
+        setMatches(Array.isArray(matchesRes.data) ? matchesRes.data : []);
+        setTeamMap(tMap);
+        setTeamDetails(tDetails);
         setGroundMap(gMap);
       } catch (error) {
         console.error("Failed to load matches", error);
@@ -64,58 +56,100 @@ export default function PublicMatchesPage() {
         setLoading(false);
       }
     };
+
     loadMatches();
   }, []);
 
-  const sortedMatches = useMemo(() => {
-    return [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const grouped = useMemo(() => {
+    const sorted = [...matches].sort((a, b) => new Date(a.date) - new Date(b.date));
+    return {
+      upcoming: sorted.filter((match) => normalizeMatchStatus(match) === "scheduled"),
+      live: sorted.filter((match) => normalizeMatchStatus(match) === "live"),
+      completed: sorted.filter((match) => normalizeMatchStatus(match) === "completed"),
+      other: sorted.filter((match) => ["abandoned", "no_result", "cancelled"].includes(normalizeMatchStatus(match))),
+    };
   }, [matches]);
 
   return (
     <div className="space-y-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-orange-400">Club Matches</p>
-            <h1 className={`text-4xl uppercase ${displayFont.className}`}>Fixtures</h1>
-          </div>
-          <Link href="/" className="text-sm font-semibold text-orange-400 hover:underline">
-            Back to Home
-          </Link>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-orange-400">Club Matches</p>
+          <h1 className={`text-4xl uppercase ${displayFont.className}`}>Fixtures And Results</h1>
         </div>
+        <Link href="/" className="text-sm font-semibold text-orange-400 hover:underline">
+          Back to Home
+        </Link>
+      </div>
 
-        {loading ? (
-          <div className={`${glassCard} p-10 text-center text-white/60`}>
-            Loading matches...
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sortedMatches.map((match) => {
-              const team1 = teamMap[match.team1] || `Team #${match.team1}`;
-              const team2 = teamMap[match.team2] || `Team #${match.team2}`;
-              const ground = groundMap[match.ground] || `Ground #${match.ground}`;
-              return (
-                <div
-                  key={match.id}
-                  className={`${glassCard} p-5 text-white transition hover:-translate-y-1 hover:border-orange-500/40 hover:bg-white/10`}
-                >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className={`text-2xl uppercase ${displayFont.className}`}>
-                        {match.external_opponent ? `vs ${match.external_opponent}` : `${team1} vs ${team2}`}
-                      </div>
-                      <p className="mt-2 text-sm text-white/60">
-                        {formatDate(match.date, true)} • {ground}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="border-white/20 text-white">
-                      {match.result ? "Completed" : "Scheduled"}
-                    </Badge>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+      {loading ? (
+        <div className={`${glassCard} p-10 text-center text-white/60`}>Loading matches...</div>
+      ) : (
+        <div className="space-y-8">
+          <PublicSection
+            title="Upcoming Fixtures"
+            text="Scheduled club fixtures awaiting first ball."
+            matches={grouped.upcoming}
+            teamMap={teamMap}
+            teamDetails={teamDetails}
+            groundMap={groundMap}
+          />
+          <PublicSection
+            title="Live Matches"
+            text="Matches where score entry has started."
+            matches={grouped.live}
+            teamMap={teamMap}
+            teamDetails={teamDetails}
+            groundMap={groundMap}
+          />
+          <PublicSection
+            title="Recent Results"
+            text="Completed matches using backend-computed results."
+            matches={grouped.completed}
+            teamMap={teamMap}
+            teamDetails={teamDetails}
+            groundMap={groundMap}
+          />
+          <PublicSection
+            title="Other Outcomes"
+            text="Abandoned, no result, or cancelled matches."
+            matches={grouped.other}
+            teamMap={teamMap}
+            teamDetails={teamDetails}
+            groundMap={groundMap}
+          />
+        </div>
+      )}
     </div>
+  );
+}
+
+function PublicSection({ title, text, matches, teamMap, teamDetails, groundMap }) {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold text-white">{title}</h2>
+        <p className="mt-1 text-sm text-white/60">{text}</p>
+      </div>
+
+      {matches.length === 0 ? (
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
+          No matches in this section.
+        </div>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {matches.map((match) => (
+            <MatchCard
+              key={match.id}
+              match={match}
+              teamMap={teamMap}
+              teamDetails={teamDetails}
+              groundMap={groundMap}
+              href={`/club/matches/${match.id}`}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

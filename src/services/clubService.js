@@ -30,12 +30,14 @@ export const clubService = {
   deletePlayer: (id) => apiClient.delete(`api/players/${id}/`),
   // 3. Teams
   getTeams: () => apiClient.get('api/teams/'),
+  getTournaments: () => apiClient.get('api/tournaments/'),
   createTeam: (data) => apiClient.post('api/teams/', data),
   updateTeam: (id, data) => apiClient.put(`api/teams/${id}/`, data),
   deleteTeam: (id) => apiClient.delete(`api/teams/${id}/`), 
   getLineups: (params) => apiClient.get('api/lineups/', { params }),
   // 4. Matches
   getMatches: () => apiClient.get('api/matches/'),
+  getMatch: (id) => apiClient.get(`api/matches/${id}/`),
   scheduleMatch: (data) => apiClient.post('api/matches/', data),
 createMatch: (data) => apiClient.post('api/matches/', data),
 updateMatch: (id, data) => apiClient.put(`api/matches/${id}/`, data),
