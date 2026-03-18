@@ -16,7 +16,7 @@ export const clubService = {
   register: (data) => apiClient.post('api/auth/register/', data),
   getPendingRegistrations: () => apiClient.get('api/auth/registrations/'),
   approveRegistration: (id) => apiClient.post(`api/auth/registrations/${id}/approve/`),
-  deleteRegistration: (id) => apiClient.delete(`api/auth/registrations/${id}/`),
+  rejectRegistration: (id) => apiClient.post(`api/auth/registrations/${id}/reject/`),
   getPlayerDashboard: () => apiClient.get('api/auth/dashboard/'),
 
   // 2. Players

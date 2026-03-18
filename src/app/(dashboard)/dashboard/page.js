@@ -243,7 +243,7 @@ export default function DashboardOverview() {
 
     try {
       setDecliningRegistrationId(registration.id);
-      await clubService.deleteRegistration(registration.id);
+      await clubService.rejectRegistration(registration.id);
       toast.success(`${label} declined successfully.`, { id: toastId });
       await loadDashboardData();
     } catch (error) {
