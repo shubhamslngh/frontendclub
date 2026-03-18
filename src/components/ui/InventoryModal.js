@@ -12,13 +12,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
 } from "@/components/ui/select";
 import { clubService } from "@/services/clubService";
+import { normalizeMediaUrl } from "@/lib/utils";
 
 const INVENTORY_TYPE_OPTIONS = [
   { value: "team_kit", label: "Team Kit" },
   { value: "merchandise", label: "Merchandise" },
 ];
 
-export default function InventoryModal({ open, onOpenChange, item, onSuccess }) {
+export default function InventoryModal({ open, onOpenChange, item, onSuccess, initialCategoryId = "" }) {
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -36,6 +37,9 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
     cost: "",
     description: ""
   });
+  const currentImageUrl = normalizeMediaUrl(
+    item?.image || item?.item_image || item?.photo || item?.thumbnail || ""
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -56,8 +60,13 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
 
   useEffect(() => {
     if (!open || item || categories.length === 0 || formData.category) return;
-    setFormData((prev) => ({ ...prev, category: String(categories[0].id) }));
-  }, [categories, open, item, formData.category]);
+
+    const defaultCategory = initialCategoryId
+      ? String(initialCategoryId)
+      : String(categories[0].id);
+
+    setFormData((prev) => ({ ...prev, category: defaultCategory }));
+  }, [categories, open, item, formData.category, initialCategoryId]);
 
   useEffect(() => {
     if (item) {
@@ -83,7 +92,7 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
     } else {
       setFormData({
         name: "",
-        category: "",
+        category: initialCategoryId ? String(initialCategoryId) : "",
         quantity: 1,
         available_quantity: "",
         distributed_quantity: 0,
@@ -94,7 +103,7 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
         description: ""
       });
     }
-  }, [item, open]);
+  }, [item, open, initialCategoryId]);
 
   useEffect(() => {
     if (!itemImage) {
@@ -166,7 +175,16 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
       };
 
       if (item?.id) {
-        await clubService.updateInventoryItem(item.id, payload);
+        if (itemImage) {
+          const updatePayload = new FormData();
+          Object.entries(payload).forEach(([key, value]) => {
+            updatePayload.append(key, value);
+          });
+          updatePayload.append("image", itemImage);
+          await clubService.updateInventoryItem(item.id, updatePayload);
+        } else {
+          await clubService.updateInventoryItem(item.id, payload);
+        }
         toast.success("Item updated");
       } else {
         const createPayload = new FormData();
@@ -192,12 +210,12 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px]">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] flex-col overflow-hidden p-0 sm:max-w-[560px]">
+        <DialogHeader className="shrink-0 border-b px-6 pt-6 pb-4">
           <DialogTitle>{item ? "Edit Item" : "Add New Inventory"}</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
           <div className="space-y-2">
             <Label>Item Name</Label>
             <Input 
@@ -322,32 +340,31 @@ export default function InventoryModal({ open, onOpenChange, item, onSuccess }) 
             />
           </div>
 
-          {!item && (
-            <div className="space-y-3">
-              <Label>Item Image</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setItemImage(e.target.files?.[0] || null)}
-              />
-              {imagePreview && (
-                <div className="overflow-hidden rounded-2xl border bg-slate-50">
-                  <div className="relative aspect-[16/10] w-full">
-                    <Image
-                      src={imagePreview}
-                      alt="Selected inventory item preview"
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
-                  </div>
+          <div className="space-y-3">
+            <Label>{item ? "Update Item Image" : "Item Image"}</Label>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setItemImage(e.target.files?.[0] || null)}
+            />
+            {(imagePreview || currentImageUrl) && (
+              <div className="overflow-hidden rounded-2xl border bg-slate-50">
+                <div className="relative aspect-[16/10] w-full">
+                  <Image
+                    src={imagePreview || currentImageUrl}
+                    alt={item ? `${item.name || "Inventory item"} preview` : "Selected inventory item preview"}
+                    fill
+                    className="object-cover"
+                    unoptimized={Boolean(imagePreview)}
+                  />
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+          </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={loading} className="w-full">
+          <DialogFooter className="shrink-0 border-t bg-background px-6 py-4">
+            <Button type="submit" disabled={loading} className="w-full sm:w-full">
               {loading ? "Saving..." : "Save Item"}
             </Button>
           </DialogFooter>

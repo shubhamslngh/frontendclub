@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
-import { Package, Plus, Search } from "lucide-react";
+import { LayoutGrid, List, Package, Plus, Search } from "lucide-react";
 
 import InventoryModal from "@/components/ui/InventoryModal";
 import { Badge } from "@/components/ui/badge";
@@ -84,8 +84,10 @@ export default function InventoryPage() {
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewMode, setViewMode] = useState("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [initialCategoryId, setInitialCategoryId] = useState("");
 
   const loadInventory = async () => {
     try {
@@ -110,7 +112,14 @@ export default function InventoryPage() {
   }, []);
 
   const handleEdit = (item) => {
+    setInitialCategoryId("");
     setSelectedItem(item);
+    setIsModalOpen(true);
+  };
+
+  const handleAddItem = (categoryId = "") => {
+    setSelectedItem(null);
+    setInitialCategoryId(categoryId ? String(categoryId) : "");
     setIsModalOpen(true);
   };
 
@@ -165,12 +174,35 @@ export default function InventoryPage() {
           },
         ]
       : []),
-  ].filter((category) => {
+  ]
+    .map((category) => {
+      const totalQuantity = category.items.reduce(
+        (sum, item) => sum + Number(item.quantity || 0),
+        0
+      );
+      const totalAvailable = category.items.reduce(
+        (sum, item) => sum + Number(item.available_quantity || 0),
+        0
+      );
+      const lowStockItems = category.items.filter(
+        (item) =>
+          Number(item.available_quantity || 0) <=
+          Math.max(2, Math.ceil(Number(item.quantity || 0) * 0.25))
+      ).length;
+
+      return {
+        ...category,
+        totalQuantity,
+        totalAvailable,
+        lowStockItems,
+      };
+    })
+    .filter((category) => {
     if (!normalizedSearch) return true;
     return (
       category.name.toLowerCase().includes(normalizedSearch) || category.items.length > 0
     );
-  });
+    });
 
   const totalItems = items.length;
   const totalAvailable = items.reduce(
@@ -215,21 +247,41 @@ export default function InventoryPage() {
       </section>
 
       <section className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            placeholder="Search by item, category, type, or detail"
-            className="h-11 rounded-xl border-slate-200 pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex w-full flex-col gap-3 sm:max-w-2xl sm:flex-row sm:items-center">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              placeholder="Search by item, category, type, or detail"
+              className="h-11 rounded-xl border-slate-200 pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="inline-flex w-fit rounded-xl border border-slate-200 bg-slate-50 p-1">
+            <Button
+              type="button"
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              className="h-9 rounded-lg px-3"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Grid
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "list" ? "default" : "ghost"}
+              className="h-9 rounded-lg px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-4 w-4" />
+              List
+            </Button>
+          </div>
         </div>
 
         <Button
-          onClick={() => {
-            setSelectedItem(null);
-            setIsModalOpen(true);
-          }}
+          onClick={() => handleAddItem()}
           className="h-11 rounded-xl bg-slate-950 px-5 text-white hover:bg-slate-800"
         >
           <Plus className="h-4 w-4" />
@@ -274,9 +326,15 @@ export default function InventoryPage() {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/20 to-transparent" />
                   <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge className="border-white/20 bg-white/15 text-white backdrop-blur-sm">
                         {category.items.length} item{category.items.length === 1 ? "" : "s"}
+                      </Badge>
+                      <Badge className="border-white/20 bg-white/15 text-white backdrop-blur-sm">
+                        {category.totalQuantity} total stock
+                      </Badge>
+                      <Badge className="border-white/20 bg-white/15 text-white backdrop-blur-sm">
+                        {category.totalAvailable} available
                       </Badge>
                     </div>
                     <h2 className="mt-3 text-2xl font-semibold">{category.name}</h2>
@@ -287,6 +345,37 @@ export default function InventoryPage() {
                 </div>
 
                 <div className="p-4 sm:p-5">
+                  <div className="mb-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">Items</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-950">{category.items.length}</div>
+                      </div>
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">Total Qty</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-950">{category.totalQuantity}</div>
+                      </div>
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">Available</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-950">{category.totalAvailable}</div>
+                      </div>
+                      <div className="rounded-2xl bg-white px-4 py-3">
+                        <div className="text-xs uppercase tracking-wide text-slate-500">Low Stock</div>
+                        <div className="mt-1 text-lg font-semibold text-slate-950">{category.lowStockItems}</div>
+                      </div>
+                    </div>
+
+                    <Button
+                      className="h-11 rounded-xl bg-slate-950 px-5 text-white hover:bg-slate-800"
+                      onClick={() =>
+                        handleAddItem(category.id === "uncategorized" ? "" : category.id)
+                      }
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add to {category.name}
+                    </Button>
+                  </div>
+
                   {category.items.length === 0 ? (
                     <div className="flex min-h-[220px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center">
                       <p className="text-base font-medium text-slate-900">No items in this category yet.</p>
@@ -295,10 +384,86 @@ export default function InventoryPage() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className={viewMode === "grid" ? "grid gap-4 md:grid-cols-2 xl:grid-cols-3" : "space-y-3"}>
                       {category.items.map((item) => {
                         const itemImage = getItemImage(item);
                         const stockTone = getStockTone(item);
+
+                        if (viewMode === "list") {
+                          return (
+                            <article
+                              key={item.id}
+                              className="flex items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70 p-3 shadow-sm"
+                            >
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+                                {itemImage ? (
+                                  <Image
+                                    src={itemImage}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover"
+                                    sizes="64px"
+                                  />
+                                ) : (
+                                  <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#f1f5f9_0%,#e2e8f0_100%)]">
+                                    <Package className="h-5 w-5 text-slate-400" />
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+                                <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <h3 className="text-sm font-semibold text-slate-950">{item.name}</h3>
+                                      <Badge className={stockTone.className}>{stockTone.label}</Badge>
+                                      <Badge variant="outline">{formatInventoryType(item.type)}</Badge>
+                                    </div>
+                                    <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+                                      {item.description || "No item description added yet."}
+                                    </p>
+                                  </div>
+
+                                  <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                                    <div className="text-xs uppercase tracking-wide text-slate-500">Value</div>
+                                    <div className="mt-0.5 text-xs font-semibold text-slate-950">
+                                      ₹{Number(item.cost || 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                                  <div className="rounded-xl bg-white px-2.5 py-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Total</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.quantity ?? 0}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2.5 py-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Avail</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.available_quantity ?? 0}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2.5 py-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Dist</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.distributed_quantity ?? 0}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2.5 py-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Missing</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.missing_quantity ?? 0}</div>
+                                  </div>
+                                  <div className="rounded-xl bg-white px-2.5 py-2">
+                                    <div className="text-[10px] uppercase tracking-wide text-slate-500">Damaged</div>
+                                    <div className="mt-0.5 text-sm font-semibold text-slate-950">{item.destroyed_quantity ?? 0}</div>
+                                  </div>
+                                </div>
+
+                                <div className="flex justify-end">
+                                  <Button variant="outline" className="h-8 rounded-lg px-3 text-xs" onClick={() => handleEdit(item)}>
+                                    Edit Item
+                                  </Button>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        }
 
                         return (
                           <article
@@ -385,6 +550,7 @@ export default function InventoryPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         item={selectedItem}
+        initialCategoryId={initialCategoryId}
         onSuccess={loadInventory}
       />
     </div>
