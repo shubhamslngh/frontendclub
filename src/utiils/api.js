@@ -20,6 +20,10 @@ const apiData = axios.create({
 const getAccessToken = () => localStorage.getItem('club_token');
 const getRefreshToken = () => localStorage.getItem('club_refresh_token');
 const setAccessToken = (token) => localStorage.setItem('club_token', token);
+const setLoginRedirectMessage = (message) => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem('club_login_message', message);
+};
 const clearAuthStorage = () => {
   localStorage.removeItem('club_token');
   localStorage.removeItem('club_refresh_token');
@@ -30,10 +34,16 @@ const clearAuthStorage = () => {
   localStorage.removeItem('club_player_role');
 };
 
-const redirectToHome = () => {
+const isAuthRequest = (url = '') =>
+  url.includes('/api/auth/login/') ||
+  url.includes('/api/auth/register/') ||
+  url.includes('/api/auth/token/refresh/');
+
+const redirectToLogin = (message = 'Please login first.') => {
   if (typeof window === 'undefined') return;
+  setLoginRedirectMessage(message);
   clearAuthStorage();
-  window.location.href = '/';
+  window.location.href = '/login';
 };
 
 // Interceptor to automatically add the Bearer token to every request
@@ -50,15 +60,15 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
-    if (error.response?.status === 404) {
-      redirectToHome();
+    if (error.response?.status === 404 && !isAuthRequest(originalRequest?.url)) {
+      redirectToLogin('Please login first.');
       return Promise.reject(error);
     }
 
     if (!originalRequest || originalRequest._retry) {
       return Promise.reject(error);
     }
-    if (originalRequest.url?.includes('/api/auth/token/refresh/')) {
+    if (isAuthRequest(originalRequest.url)) {
       return Promise.reject(error);
     }
     if (error.response?.status !== 401) {
@@ -67,7 +77,7 @@ apiClient.interceptors.response.use(
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
-      redirectToHome();
+      redirectToLogin('Your session expired. Please login first.');
       return Promise.reject(error);
     }
 
@@ -88,7 +98,7 @@ apiClient.interceptors.response.use(
       return apiClient(originalRequest);
     } catch (refreshError) {
       refreshPromise = null;
-      redirectToHome();
+      redirectToLogin('Your session expired. Please login first.');
       return Promise.reject(refreshError);
     }
   }

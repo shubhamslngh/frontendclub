@@ -35,7 +35,9 @@ export default function DashboardOverview() {
   const [loading, setLoading] = useState(true);
   const [generatingInvoices, setGeneratingInvoices] = useState(false);
   const [approvingRegistrationId, setApprovingRegistrationId] = useState(null);
+  const [decliningRegistrationId, setDecliningRegistrationId] = useState(null);
   const [approvingMediaId, setApprovingMediaId] = useState(null);
+  const [decliningMediaId, setDecliningMediaId] = useState(null);
   const [settlingTransactionId, setSettlingTransactionId] = useState(null);
 
   const loadDashboardData = async () => {
@@ -231,6 +233,27 @@ export default function DashboardOverview() {
     }
   };
 
+  const handleDeclineRegistration = async (registration) => {
+    const fullName = [registration.first_name, registration.last_name].filter(Boolean).join(" ").trim();
+    const label = fullName || registration.phone_number || `Request #${registration.id}`;
+    const confirmed = window.confirm(`Decline ${label}'s registration request?`);
+    if (!confirmed) return;
+
+    const toastId = toast.loading(`Declining ${label}...`);
+
+    try {
+      setDecliningRegistrationId(registration.id);
+      await clubService.deleteRegistration(registration.id);
+      toast.success(`${label} declined successfully.`, { id: toastId });
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Failed to decline registration:", error);
+      toast.error(getErrorMessage(error, "Could not decline registration."), { id: toastId });
+    } finally {
+      setDecliningRegistrationId(null);
+    }
+  };
+
   const handleSettleCashPayment = async (transaction) => {
     const playerName = getTransactionPlayerName(transaction);
     const toastId = toast.loading(`Settling ${playerName}'s payment...`);
@@ -265,6 +288,26 @@ export default function DashboardOverview() {
       toast.error(getErrorMessage(error, "Could not approve this media item."), { id: toastId });
     } finally {
       setApprovingMediaId(null);
+    }
+  };
+
+  const handleDeclineMedia = async (item) => {
+    const label = item.title || item.file_name || `Media #${item.id}`;
+    const confirmed = window.confirm(`Decline ${label}? This will remove the pending upload.`);
+    if (!confirmed) return;
+
+    const toastId = toast.loading(`Declining ${label}...`);
+
+    try {
+      setDecliningMediaId(item.id);
+      await clubService.deleteMedia(item.id);
+      toast.success(`${label} declined successfully.`, { id: toastId });
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Failed to decline media:", error);
+      toast.error(getErrorMessage(error, "Could not decline this media item."), { id: toastId });
+    } finally {
+      setDecliningMediaId(null);
     }
   };
 
@@ -341,13 +384,23 @@ export default function DashboardOverview() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => handleApproveRegistration(registration)}
-                    disabled={approvingRegistrationId === registration.id}
-                  >
-                    {approvingRegistrationId === registration.id ? "Approving..." : "Approve Registration"}
-                  </Button>
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                    <Button
+                      variant="outline"
+                      className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 sm:w-auto"
+                      onClick={() => handleDeclineRegistration(registration)}
+                      disabled={approvingRegistrationId === registration.id || decliningRegistrationId === registration.id}
+                    >
+                      {decliningRegistrationId === registration.id ? "Declining..." : "Decline"}
+                    </Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => handleApproveRegistration(registration)}
+                      disabled={approvingRegistrationId === registration.id || decliningRegistrationId === registration.id}
+                    >
+                      {approvingRegistrationId === registration.id ? "Approving..." : "Approve Registration"}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
@@ -484,14 +537,24 @@ export default function DashboardOverview() {
                         </div>
                       </div>
                     </div>
-                    <Button
-                      className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
-                      onClick={() => handleApproveMedia(item)}
-                      disabled={approvingMediaId === item.id}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      {approvingMediaId === item.id ? "Approving..." : "Approve"}
-                    </Button>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                      <Button
+                        variant="outline"
+                        className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 sm:w-auto"
+                        onClick={() => handleDeclineMedia(item)}
+                        disabled={approvingMediaId === item.id || decliningMediaId === item.id}
+                      >
+                        {decliningMediaId === item.id ? "Declining..." : "Decline"}
+                      </Button>
+                      <Button
+                        className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 sm:w-auto"
+                        onClick={() => handleApproveMedia(item)}
+                        disabled={approvingMediaId === item.id || decliningMediaId === item.id}
+                      >
+                        <CheckCircle2 className="h-4 w-4" />
+                        {approvingMediaId === item.id ? "Approving..." : "Approve"}
+                      </Button>
+                    </div>
                   </div>
                 );
               })}

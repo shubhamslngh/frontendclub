@@ -45,6 +45,12 @@ export default function LoginPage() {
   };
 
   useEffect(() => {
+    const loginMessage = window.sessionStorage.getItem("club_login_message");
+    if (loginMessage) {
+      setError(loginMessage);
+      window.sessionStorage.removeItem("club_login_message");
+    }
+
     const token = localStorage.getItem("club_token");
     if (token) {
       const storedUrl = localStorage.getItem("club_dashboard_url");
