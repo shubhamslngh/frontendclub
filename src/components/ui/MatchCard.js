@@ -44,7 +44,7 @@ export default function MatchCard({
   const ground = match?.ground_name || groundMap[match?.ground] || (match?.ground ? `Ground #${match.ground}` : "Venue TBD");
 
   return (
-    <Card className={`overflow-hidden border-l-4 ${surfaceMeta.cardAccent} ${surfaceMeta.cardShell} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl`}>
+    <Card className={`overflow-hidden border-2 ${surfaceMeta.cardAccent} ${surfaceMeta.cardShell} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl`}>
       <CardContent className="space-y-4 p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 space-y-1.5">
@@ -138,10 +138,10 @@ export default function MatchCard({
 
           </div>
         </div>
-        <div className={`rounded-3xl border p-4 ${surfaceMeta.detailShell}`}>
+        <div className={`rounded-3xl border p-1 ${surfaceMeta.detailShell}`}>
             <div className="flex items-start gap-3">
            
-              <div className="min-w-0 flex-1 space-y-3">
+              <div className="min-w-0  flex-1 ">
 
                 {status === "completed" || status === "abandoned" || status === "no_result" || status === "cancelled" ? (
                 <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2">

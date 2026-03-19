@@ -1,105 +1,210 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { Crown, Shield, Users } from "lucide-react";
 import { toast } from "sonner";
-import { 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter 
+
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox"; 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { clubService } from "@/services/clubService";
+
+const ROLE_ORDER = [
+  { id: "batsman", label: "Batsmen" },
+  { id: "bowler", label: "Bowlers" },
+  { id: "all_rounder", label: "All-Rounders" },
+  { id: "wicket_keeper", label: "Wicket Keepers" },
+  { id: "other", label: "Other Roles" },
+];
+
+const getPlayerFullName = (player) =>
+  [player?.first_name, player?.last_name].filter(Boolean).join(" ").trim() || "Unknown Player";
+
+const normalizeRole = (role) => {
+  const value = String(role || "").toLowerCase();
+  if (value === "wicketkeeper") return "wicket_keeper";
+  if (["batsman", "bowler", "all_rounder", "wicket_keeper"].includes(value)) return value;
+  return "other";
+};
+
+const formatRoleLabel = (role) =>
+  String(role || "other")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+function PlayerSelectionCard({
+  player,
+  checked,
+  isCaptain,
+  onToggle,
+}) {
+  return (
+    <label
+      htmlFor={`player-${player.id}`}
+      className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition ${
+        checked
+          ? "border-slate-900 bg-slate-900 text-white"
+          : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+      }`}
+    >
+      <Checkbox
+        id={`player-${player.id}`}
+        checked={checked}
+        onCheckedChange={() => onToggle(player.id)}
+        className="mt-0.5"
+      />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className={`text-sm font-semibold ${checked ? "text-white" : "text-slate-950"}`}>
+            {getPlayerFullName(player)}
+          </p>
+          {isCaptain ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                checked
+                  ? "bg-amber-400/20 text-amber-100"
+                  : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              Captain
+            </span>
+          ) : null}
+        </div>
+
+        <div className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs ${checked ? "text-white/75" : "text-slate-500"}`}>
+          <span>{formatRoleLabel(player.role)}</span>
+          {player.age ? <span>Age {player.age}</span> : null}
+          {player.membership_active ? <span>Membership Active</span> : null}
+          {player.membership?.status ? <span>{player.membership.status}</span> : null}
+        </div>
+      </div>
+    </label>
+  );
+}
 
 export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [players, setPlayers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  
-  // State to hold form data
   const [formData, setFormData] = useState({
     name: "",
     captain: "",
-    player_ids: [], // Stores an array of Integers (e.g., [1, 2, 5])
+    player_ids: [],
   });
 
-  // 1. Load all players when modal opens (to populate dropdowns)
   useEffect(() => {
     const loadPlayers = async () => {
       try {
         const res = await clubService.getPlayers();
-        setPlayers(res.data);
+        setPlayers(res.data || []);
       } catch (err) {
         toast.error("Could not load players list");
       }
     };
-    if (open) loadPlayers();
+
+    if (open) {
+      loadPlayers();
+    }
   }, [open]);
 
-  // 2. Pre-fill form when editing a team
   useEffect(() => {
     if (team) {
-      // Extract just the IDs from the team.players object array
-      const existingPlayerIds = team.players?.map(p => p.id) || [];
+      const existingPlayerIds = team.players?.map((player) => player.id) || [];
       const captainId = team.captain ? team.captain.toString() : "";
       const captainInt = team.captain ? Number(team.captain) : null;
       const normalizedIds =
         captainInt && !existingPlayerIds.includes(captainInt)
           ? [...existingPlayerIds, captainInt]
           : existingPlayerIds;
-      
-      setFormData({ 
-        name: team.name, 
-        // Convert ID to string for the Select component
+
+      setFormData({
+        name: team.name || "",
         captain: captainId,
-        player_ids: normalizedIds
+        player_ids: normalizedIds,
       });
-    } else {
-      // Reset for "Create New" mode
-      setFormData({ name: "", captain: "", player_ids: [] });
+      return;
     }
+
+    setFormData({
+      name: "",
+      captain: "",
+      player_ids: [],
+    });
   }, [team, open]);
 
-  // Helper to handle checkbox toggles
   const togglePlayer = (playerId) => {
-    setFormData(prev => {
+    setFormData((prev) => {
       const captainId = prev.captain ? parseInt(prev.captain, 10) : null;
       const isSelected = prev.player_ids.includes(playerId);
+
       if (isSelected && captainId === playerId) {
-        toast.error("Captain must remain in the team.");
+        toast.error("Captain must remain in the squad.");
         return prev;
       }
-      const newIds = isSelected 
-        ? prev.player_ids.filter(id => id !== playerId)
-        : [...prev.player_ids, playerId];
-      return { ...prev, player_ids: newIds };
+
+      return {
+        ...prev,
+        player_ids: isSelected
+          ? prev.player_ids.filter((id) => id !== playerId)
+          : [...prev.player_ids, playerId],
+      };
     });
   };
 
-  const filteredPlayers = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return players;
-    return players.filter((player) => {
-      const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
-      return fullName.includes(query) || player.role?.toLowerCase().includes(query);
+  const selectedPlayers = useMemo(
+    () => players.filter((player) => formData.player_ids.includes(player.id)),
+    [players, formData.player_ids]
+  );
+
+  const captainOptions = useMemo(
+    () => selectedPlayers.sort((a, b) => getPlayerFullName(a).localeCompare(getPlayerFullName(b))),
+    [selectedPlayers]
+  );
+
+  const playersByRole = useMemo(() => {
+    const grouped = ROLE_ORDER.reduce((acc, role) => {
+      acc[role.id] = [];
+      return acc;
+    }, {});
+
+    players.forEach((player) => {
+      grouped[normalizeRole(player.role)].push(player);
     });
-  }, [players, searchTerm]);
+
+    return ROLE_ORDER.map((role) => ({
+      ...role,
+      players: grouped[role.id].sort((a, b) =>
+        getPlayerFullName(a).localeCompare(getPlayerFullName(b))
+      ),
+    })).filter((role) => role.players.length > 0);
+  }, [players]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Step A: Format Data for API
       const captainId = formData.captain ? parseInt(formData.captain, 10) : null;
-      
-      // Ensure we are using the array of IDs we built in state
-      let finalSquadIds = [...formData.player_ids];
+      const finalSquadIds = [...formData.player_ids];
 
-      // Rule: If a Captain is selected, ensure they are in the squad list
       if (captainId && !finalSquadIds.includes(captainId)) {
         finalSquadIds.push(captainId);
       }
@@ -107,13 +212,10 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
       const payload = {
         name: formData.name,
         captain: captainId,
-    player_ids: finalSquadIds // Sends array of IDs: [1, 2, 3]
+        player_ids: finalSquadIds,
       };
 
-      console.log("Sending Payload:", payload);
-
-      // Step B: Send Request
-      if (team && team.id) {
+      if (team?.id) {
         await clubService.updateTeam(team.id, payload);
         toast.success("Team updated successfully");
       } else {
@@ -121,12 +223,10 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
         toast.success("Team created successfully");
       }
 
-      onSuccess(); // Refresh parent list
-      onOpenChange(false); // Close modal
-
+      onSuccess();
+      onOpenChange(false);
     } catch (error) {
       console.error("Save Error:", error);
-      // specific error handling
       if (error.response?.data) {
         toast.error(`Error: ${JSON.stringify(error.response.data)}`);
       } else {
@@ -139,119 +239,211 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{team ? "Edit Team Squad" : "Create New Team"}</DialogTitle>
+      <DialogContent className="max-w-[96vw] h-[90vh] overflow-hidden border-slate-200 p-0 md:max-w-4xl">
+        <DialogHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+          <DialogTitle className="text-xl font-semibold text-slate-950">
+            {team ? "Manage Team" : "Create Team"}
+          </DialogTitle>
+          <p className="text-sm text-slate-500">
+            Build the squad, assign a captain, and organize players by role.
+          </p>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          
-          {/* Team Name Input */}
-          <div className="space-y-2">
-            <Label>Team Name</Label>
-            <Input 
-              placeholder="e.g. Thunderbolts"
-              value={formData.name}
-              onChange={(e) => setFormData({...formData, name: e.target.value})}
-              required 
-            />
-          </div>
 
-          {/* Captain Select Dropdown */}
-          <div className="space-y-2">
-            <Label>Team Captain</Label>
-            <Select 
-              value={formData.captain} 
-              onValueChange={(v) => {
-                setFormData((prev) => {
-                  const captainId = v ? parseInt(v, 10) : null;
-                  const needsAdd = captainId && !prev.player_ids.includes(captainId);
-                  return {
-                    ...prev,
-                    captain: v,
-                    player_ids: needsAdd ? [...prev.player_ids, captainId] : prev.player_ids,
-                  };
-                });
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a captain" />
-              </SelectTrigger>
-              <SelectContent>
-                {players.map(p => (
-                  <SelectItem key={p.id} value={p.id.toString()}>
-                    {p.first_name} {p.last_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Squad Selection Checklist */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label>Assign Players to Squad ({formData.player_ids.length} selected)</Label>
-              <Input
-                placeholder="Search players..."
-                className="max-w-xs"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <div className="rounded-md border bg-white p-4">
-              {formData.player_ids.length === 0 ? (
-                <div className="text-xs text-slate-500">No players selected yet.</div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {formData.player_ids.map((playerId) => {
-                    const player = players.find((p) => p.id === playerId);
-                    const isCaptain = formData.captain && Number(formData.captain) === playerId;
-                    return (
-                      <button
-                        type="button"
-                        key={playerId}
-                        onClick={() => !isCaptain && togglePlayer(playerId)}
-                        className={`flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
-                          isCaptain
-                            ? "border-green-200 bg-green-50 text-green-700"
-                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
-                        }`}
-                      >
-                        {player ? `${player.first_name} ${player.last_name}` : `Player #${playerId}`}
-                        {isCaptain ? <span className="text-[10px] uppercase">Captain</span> : "x"}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <ScrollArea className="h-60 rounded-md border bg-slate-50 p-4">
-              <div className="space-y-3">
-                {filteredPlayers.map((player) => (
-                  <div key={player.id} className="flex items-center space-x-3">
-                    <Checkbox 
-                      id={`player-${player.id}`}
-                      checked={formData.player_ids.includes(player.id)}
-                      onCheckedChange={() => togglePlayer(player.id)}
+        <form onSubmit={handleSubmit} className="space-y-6 px-6 py-5">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
+            <div className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-white p-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Team Name</Label>
+                    <Input
+                      placeholder="e.g. Thunderbolts"
+                      value={formData.name}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, name: e.target.value }))
+                      }
+                      required
                     />
-                    <label 
-                      htmlFor={`player-${player.id}`}
-                      className="text-sm font-medium leading-none cursor-pointer flex-1"
-                    >
-                      {player.first_name} {player.last_name} 
-                      <span className="ml-2 text-xs text-slate-500">({player.role})</span>
-                    </label>
                   </div>
-                ))}
-                {filteredPlayers.length === 0 && (
-                  <div className="text-xs text-slate-500">No players match this search.</div>
-                )}
+
+                  <div className="space-y-2">
+                    <Label>Team Captain</Label>
+                    <Select
+                      value={formData.captain}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, captain: value }))
+                      }
+                      disabled={captainOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            captainOptions.length === 0
+                              ? "Select players first"
+                              : "Choose squad captain"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {captainOptions.map((player) => (
+                          <SelectItem key={player.id} value={player.id.toString()}>
+                            {getPlayerFullName(player)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </ScrollArea>
+
+              <div className="rounded-3xl border border-slate-200 bg-white">
+                <div className="border-b border-slate-200 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">Squad Assignment</p>
+                      <p className="text-sm text-slate-500">
+                        Select players from each role group for this team.
+                      </p>
+                    </div>
+                    <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      {formData.player_ids.length} Selected
+                    </div>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[52vh] px-4 py-4 md:h-[420px]">
+                  <div className="space-y-5">
+                    {playersByRole.map((group) => (
+                      <section key={group.id} className="space-y-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-slate-950">{group.label}</p>
+                            <p className="text-xs text-slate-500">
+                              {group.players.length} available player
+                              {group.players.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {group.players.map((player) => (
+                            <PlayerSelectionCard
+                              key={player.id}
+                              player={player}
+                              checked={formData.player_ids.includes(player.id)}
+                              isCaptain={Number(formData.captain) === player.id}
+                              onToggle={togglePlayer}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            </div>
+
+            <aside className="space-y-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-slate-500" />
+                  <p className="text-sm font-semibold text-slate-950">Squad Summary</p>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-1">
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Team Name
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      {formData.name || "Untitled Team"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Squad Size
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      {formData.player_ids.length} players
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                      Captain
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-950">
+                      {captainOptions.find((player) => String(player.id) === formData.captain)
+                        ? getPlayerFullName(
+                            captainOptions.find(
+                              (player) => String(player.id) === formData.captain
+                            )
+                          )
+                        : "Not selected"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl overflow-scroll h-100 border border-green-400 bg-white p-4">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-slate-500" />
+                  <p className="text-sm font-semibold text-slate-950">Selected Players</p>
+                </div>
+
+                <div className="my-2 space-y-2">
+                  {selectedPlayers.length === 0 ? (
+                    <p className="text-sm text-slate-500">
+                      Select players from the role groups to build this squad.
+                    </p>
+                  ) : (
+                    selectedPlayers.map((player) => {
+                      const isCaptain = String(player.id) === formData.captain;
+
+                      return (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-slate-950">
+                              {getPlayerFullName(player)}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              {formatRoleLabel(player.role)}
+                            </p>
+                          </div>
+
+                          {isCaptain ? (
+                            <div className="rounded-full bg-amber-50 p-2 text-amber-700">
+                              <Crown className="h-4 w-4" />
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </aside>
           </div>
 
-          <DialogFooter>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "Processing..." : team ? "Update Team" : "Create Team"}
+          <DialogFooter className="border-t border-slate-200 pt-5">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full rounded-xl md:w-auto"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-slate-950 text-white hover:bg-slate-800 md:w-auto"
+            >
+              {loading ? "Saving..." : team ? "Update Team" : "Create Team"}
             </Button>
           </DialogFooter>
         </form>
