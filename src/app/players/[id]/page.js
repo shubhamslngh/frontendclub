@@ -8,6 +8,8 @@ import { Bebas_Neue } from "next/font/google";
 import { clubService } from "@/services/clubService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { formatRoleLabel, getMembershipStatusClasses } from "@/lib/players";
 
 const displayFont = Bebas_Neue({
   subsets: ["latin"],
@@ -33,6 +35,8 @@ export default function PlayerProfilePage() {
 
   const glassCard =
     "rounded-3xl border border-white/10 bg-white/5 backdrop-blur-lg shadow-[0_10px_30px_rgba(0,0,0,0.35)]";
+  const membership = player?.membership;
+  const leavePeriods = membership?.leave_periods || [];
 
   useEffect(() => {
     const loadPlayer = async () => {
@@ -130,26 +134,33 @@ export default function PlayerProfilePage() {
 
                       <div className="flex flex-wrap gap-3">
                         <Badge variant="outline" className="border-white/20 text-white">
-                          {player.role || "Player"}
+                          {formatRoleLabel(player.role || "none")}
                         </Badge>
                         <Badge variant="outline" className="border-white/20 text-white">
                           Age: {player.age || "-"}
                         </Badge>
-                        <Badge variant="outline" className="border-white/20 text-white">
-                          {player.membership?.status || "Unknown"}
+                        <Badge
+                          variant="outline"
+                          className={cn("border-white/20 text-white", getMembershipStatusClasses(membership?.status))}
+                        >
+                          {membership?.status || "Unknown"}
                         </Badge>
                       </div>
 
                       <div className="space-y-2 text-sm text-white/70">
                         <p>📞 {player.phone_number || "-"}</p>
-                        <p>📅 Joined: {player.membership?.join_date || "-"}</p>
+                        <p>📅 Joined: {membership?.join_date || "-"}</p>
+                        <p>🧾 Fee Exempt: {membership?.fee_exempt ? "Yes" : "No"}</p>
+                        {membership?.fee_exempt_reason ? (
+                          <p>📝 Exemption Reason: {membership.fee_exempt_reason}</p>
+                        ) : null}
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* BELOW SECTIONS */}
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-3">
                   <div className={`${glassCard} p-8 space-y-6`}>
                     <h3 className={`text-3xl uppercase ${displayFont.className}`}>
                       Teams
@@ -193,6 +204,59 @@ export default function PlayerProfilePage() {
                     ) : (
                       <p className="text-sm text-white/60">
                         Not a captain currently.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className={`${glassCard} p-8 space-y-6`}>
+                    <h3 className={`text-3xl uppercase ${displayFont.className}`}>
+                      Membership
+                    </h3>
+
+                    {membership ? (
+                      <div className="space-y-4">
+                        <div className="flex flex-wrap gap-3">
+                          <Badge
+                            variant="outline"
+                            className={cn("border-white/20 text-white", getMembershipStatusClasses(membership.status))}
+                          >
+                            {membership.status || "Unknown"}
+                          </Badge>
+                          {membership.fee_exempt ? (
+                            <Badge variant="outline" className="border-blue-300/40 bg-blue-500/10 text-blue-100">
+                              Fee Exempt
+                            </Badge>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-2 text-sm text-white/70">
+                          <p>Join Date: {membership.join_date || "-"}</p>
+                          <p>Leave Periods: {leavePeriods.length}</p>
+                          {membership.fee_exempt_reason ? (
+                            <p>Exemption Reason: {membership.fee_exempt_reason}</p>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-3">
+                          <p className="text-xs uppercase tracking-[0.25em] text-white/45">Leave Periods</p>
+                          {leavePeriods.length ? (
+                            leavePeriods.map((leave) => (
+                              <div
+                                key={leave.id}
+                                className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/75"
+                              >
+                                <p>{leave.start_date} to {leave.end_date}</p>
+                                <p className="mt-1 text-white/55">{leave.reason || "No reason provided"}</p>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-white/60">No leave periods recorded.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-white/60">
+                        Membership details unavailable.
                       </p>
                     )}
                   </div>

@@ -22,8 +22,8 @@ export const clubService = {
   // 2. Players
   getPlayers: () => apiClient.get('api/players/'),
   getPlayer: (id) => apiClient.get(`api/players/${id}/`),
-  createPlayer: (data) => apiClient.post('api/players/', data),
-  updatePlayer: (id, data) => apiClient.put(`api/players/${id}/`, data),
+  createPlayer: (data) => apiClient.post('api/players/', data, getMultipartConfig(data)),
+  updatePlayer: (id, data) => apiClient.put(`api/players/${id}/`, data, getMultipartConfig(data)),
   updatePlayerProfile: (id, formData) =>
     apiClient.put(`api/players/${id}/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -66,6 +66,7 @@ deleteInventoryItem: (id) => apiClient.delete(`api/inventory-items/${id}/`),
   getTransactions: () => apiClient.get('api/transactions/'),
   updateTransaction: (id, data) => apiClient.patch(`api/transactions/${id}/`, data),
   generateMonthlyInvoices: (data = {}) => apiClient.post('api/financials/generate-monthly-invoices/', data),
+  backfillMonthlyPayments: (data) => apiClient.post('api/financials/backfill-monthly-payments/', data),
   initiatePayment: (transactionId) => apiClient.post('api/financials/initiate-payment/', { transaction_id: transactionId }),
   checkPaymentStatus: (merchantTransactionId) =>
     apiClient.post('api/financials/payment-callback/', { merchantTransactionId: merchantTransactionId }),

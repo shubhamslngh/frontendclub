@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import SquadCard from "@/components/ui/SquadCard";
+import { PLAYER_ROLE_OPTIONS } from "@/lib/players";
 import { getStatusMeta, normalizeMatchStatus } from "@/lib/matches";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
@@ -59,12 +60,7 @@ const getMatchTitle = (match, teamNames = {}) => {
   return match.title || "Match";
 };
 
-const roleOptions = [
-  { value: "batsman", label: "Batsman" },
-  { value: "bowler", label: "Bowler" },
-  { value: "all_rounder", label: "All-rounder" },
-  { value: "wicket_keeper", label: "Wicketkeeper" },
-];
+const roleOptions = PLAYER_ROLE_OPTIONS;
 
 export default function PlayerHome() {
   const router = useRouter();
@@ -87,7 +83,7 @@ export default function PlayerHome() {
     last_name: "",
     phone_number: "",
     age: "",
-    role: "all_rounder",
+    role: "none",
   });
   const [profileFile, setProfileFile] = useState(null);
   const [profilePreview, setProfilePreview] = useState("");
@@ -201,7 +197,7 @@ export default function PlayerHome() {
       last_name: player.last_name || "",
       phone_number: player.phone_number || "",
       age: player.age ? String(player.age) : "",
-      role: player.role || "all_rounder",
+      role: player.role || "none",
     });
     setProfilePreview("");
     setProfileFile(null);

@@ -18,6 +18,7 @@ import TeamModal from "@/components/ui/TeamModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { formatRoleLabel, normalizeRoleGroup } from "@/lib/players";
 import { clubService } from "@/services/clubService";
 import { normalizeMediaUrl } from "@/lib/utils";
 
@@ -74,7 +75,7 @@ const getAverageAge = (team) => {
 
 const getRoleBreakdown = (team) => {
   const counts = {
-    batsman: 0,
+    batter: 0,
     bowler: 0,
     all_rounder: 0,
     wicket_keeper: 0,
@@ -82,12 +83,12 @@ const getRoleBreakdown = (team) => {
   };
 
   (team.players || []).forEach((player) => {
-    const role = String(player.role || "").toLowerCase();
+    const role = normalizeRoleGroup(player.role);
 
-    if (role === "batsman") counts.batsman += 1;
+    if (role === "batter") counts.batter += 1;
     else if (role === "bowler") counts.bowler += 1;
     else if (role === "all_rounder") counts.all_rounder += 1;
-    else if (role === "wicket_keeper" || role === "wicketkeeper") counts.wicket_keeper += 1;
+    else if (role === "wicket_keeper") counts.wicket_keeper += 1;
     else counts.other += 1;
   });
 
@@ -127,16 +128,9 @@ const buildTeamSummary = (team) => {
   };
 };
 
-const normalizeRole = (role) => {
-  const value = String(role || "").toLowerCase();
-  if (value === "wicketkeeper") return "wicket_keeper";
-  if (["batsman", "bowler", "all_rounder", "wicket_keeper"].includes(value)) return value;
-  return "other";
-};
-
 const matchesPlayerRoleFilter = (player, filter) => {
   if (filter === "all") return true;
-  return normalizeRole(player.role) === filter;
+  return normalizeRoleGroup(player.role) === filter;
 };
 
 const sortTeams = (teams, sortBy) => {
@@ -371,7 +365,7 @@ function TeamRosterPreview({ players }) {
 
 function RoleChips({ breakdown }) {
   const items = [
-    { label: "Batsmen", value: breakdown.batsman },
+    { label: "Batters", value: breakdown.batter },
     { label: "Bowlers", value: breakdown.bowler },
     { label: "All-Rounders", value: breakdown.all_rounder },
     { label: "Keepers", value: breakdown.wicket_keeper },
@@ -456,14 +450,6 @@ function ExpandedPlayerList({ players, captainId }) {
       })}
     </div>
   );
-}
-
-function formatRoleLabel(role) {
-  return String(role || "other")
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }
 
 function TeamIdentityBlock({ summary, featured = false }) {

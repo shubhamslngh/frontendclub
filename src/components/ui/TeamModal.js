@@ -23,10 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatRoleLabel, normalizeRoleGroup } from "@/lib/players";
 import { clubService } from "@/services/clubService";
 
 const ROLE_ORDER = [
-  { id: "batsman", label: "Batsmen" },
+  { id: "batter", label: "Batters" },
   { id: "bowler", label: "Bowlers" },
   { id: "all_rounder", label: "All-Rounders" },
   { id: "wicket_keeper", label: "Wicket Keepers" },
@@ -35,20 +36,6 @@ const ROLE_ORDER = [
 
 const getPlayerFullName = (player) =>
   [player?.first_name, player?.last_name].filter(Boolean).join(" ").trim() || "Unknown Player";
-
-const normalizeRole = (role) => {
-  const value = String(role || "").toLowerCase();
-  if (value === "wicketkeeper") return "wicket_keeper";
-  if (["batsman", "bowler", "all_rounder", "wicket_keeper"].includes(value)) return value;
-  return "other";
-};
-
-const formatRoleLabel = (role) =>
-  String(role || "other")
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 
 function PlayerSelectionCard({
   player,
@@ -186,7 +173,7 @@ export default function TeamModal({ open, onOpenChange, team, onSuccess }) {
     }, {});
 
     players.forEach((player) => {
-      grouped[normalizeRole(player.role)].push(player);
+      grouped[normalizeRoleGroup(player.role)].push(player);
     });
 
     return ROLE_ORDER.map((role) => ({

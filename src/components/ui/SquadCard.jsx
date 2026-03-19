@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { formatRoleLabel } from "@/lib/players";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 
@@ -54,7 +55,7 @@ export default function SquadCard({
           <p className="text-sm font-semibold tracking-wide">
             {fullName || "Player"}
           </p>
-          <p className="text-xs text-white/70">{player.role || "Player"}</p>
+          <p className="text-xs text-white/70">{formatRoleLabel(player.role || "none")}</p>
 
           {!compact && player.age && (
             <p className="text-xs text-white/60 mt-1">Age {player.age}</p>

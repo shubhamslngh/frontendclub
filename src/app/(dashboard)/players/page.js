@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Plus, Trophy, Users, Phone, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { formatRoleLabel, getMembershipStatusClasses } from "@/lib/players";
 import { toast } from "sonner";
 
 export default function PlayersPage() {
@@ -59,6 +61,32 @@ export default function PlayersPage() {
   const filteredPlayers = players.filter(p => 
     `${p.first_name} ${p.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const renderMembership = (player) => {
+    const status = player.membership?.status || "pending";
+    const leavePeriods = player.membership?.leave_periods || [];
+
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge variant="outline" className={cn("capitalize", getMembershipStatusClasses(status))}>
+          {status}
+        </Badge>
+        <span className="text-[10px] text-muted-foreground font-mono">
+          Joined: {player.membership?.join_date || "-"}
+        </span>
+        {player.membership?.fee_exempt ? (
+          <span className="text-[10px] font-medium text-blue-700">
+            Fee exempt{player.membership?.fee_exempt_reason ? `: ${player.membership.fee_exempt_reason}` : ""}
+          </span>
+        ) : null}
+        {leavePeriods.length > 0 ? (
+          <span className="text-[10px] text-muted-foreground">
+            Leave periods: {leavePeriods.length}
+          </span>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -130,21 +158,13 @@ export default function PlayersPage() {
                   <div>
                     <div className="text-muted-foreground">Role & Age</div>
                     <div className="mt-1 flex flex-col gap-1">
-                      <Badge variant="outline" className="w-fit capitalize">{player.role}</Badge>
+                      <Badge variant="outline" className="w-fit">{formatRoleLabel(player.role)}</Badge>
                       <span className="text-slate-500">{player.age} Years Old</span>
                     </div>
                   </div>
                   <div>
                     <div className="text-muted-foreground">Membership</div>
-                    <div className="mt-1 flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <div className={`h-2 w-2 rounded-full ${player.membership_active ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <span className="text-sm font-medium capitalize">{player.membership?.status}</span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        Joined: {player.membership?.join_date}
-                      </span>
-                    </div>
+                    <div className="mt-1">{renderMembership(player)}</div>
                   </div>
                 </div>
 
@@ -211,7 +231,7 @@ export default function PlayersPage() {
                 {/* Role & Age */}
                 <TableCell className="whitespace-normal break-words align-top">
                   <div className="flex flex-col gap-1">
-                    <Badge variant="outline" className="w-fit capitalize">{player.role}</Badge>
+                    <Badge variant="outline" className="w-fit">{formatRoleLabel(player.role)}</Badge>
                     <span className="text-xs text-slate-500">{player.age} Years Old</span>
                   </div>
                 </TableCell>
@@ -240,15 +260,7 @@ export default function PlayersPage() {
 
                 {/* Membership Details */}
                 <TableCell className="whitespace-normal break-words align-top">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <div className={`h-2 w-2 rounded-full ${player.membership_active ? 'bg-green-500' : 'bg-red-500'}`} />
-                      <span className="text-sm font-medium capitalize">{player.membership?.status}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-mono">
-                      Joined: {player.membership?.join_date}
-                    </span>
-                  </div>
+                  {renderMembership(player)}
                 </TableCell>
 
                 {/* Contact & Actions */}

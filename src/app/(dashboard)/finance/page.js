@@ -2,19 +2,22 @@
 import React, { useEffect, useState } from 'react';
 import { clubService } from '@/services/clubService';
 import PaymentModal from "@/components/ui/PaymentModal";
+import BackfillPaymentsModal from "@/components/ui/BackfillPaymentsModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { IndianRupee, TrendingUp, CreditCard, Plus } from "lucide-react";
+import { IndianRupee, Plus, RotateCcw } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 
 export default function FinancePage() {
   const [transactions, setTransactions] = useState([]);
+  const [playerOptions, setPlayerOptions] = useState([]);
   const [players, setPlayers] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isBackfillOpen, setIsBackfillOpen] = useState(false);
   const [stats, setStats] = useState({ total: 0, monthly: 0 });
 
   const loadData = async () => {
@@ -25,6 +28,7 @@ export default function FinancePage() {
       ]);
       
       setTransactions(transRes.data);
+      setPlayerOptions(playerRes.data);
       
       // Create Player Lookup Map
       const pMap = {};
@@ -42,7 +46,13 @@ export default function FinancePage() {
     }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      loadData();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // Helper to safely format dates
   const formatDate = (dateString) => {
@@ -53,14 +63,19 @@ export default function FinancePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Finance</h1>
           <p className="text-muted-foreground">Track revenue, fees, and payments.</p>
         </div>
-        <Button onClick={() => setIsModalOpen(true)} className="gap-2 bg-green-600 hover:bg-green-700">
-          <Plus className="h-4 w-4" /> Record Payment
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button onClick={() => setIsBackfillOpen(true)} variant="outline" className="gap-2">
+            <RotateCcw className="h-4 w-4" /> Backfill Paid Months
+          </Button>
+          <Button onClick={() => setIsModalOpen(true)} className="gap-2 bg-green-600 hover:bg-green-700">
+            <Plus className="h-4 w-4" /> Record Payment
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -129,6 +144,12 @@ export default function FinancePage() {
       <PaymentModal 
         open={isModalOpen} 
         onOpenChange={setIsModalOpen}
+        onSuccess={loadData}
+      />
+      <BackfillPaymentsModal
+        open={isBackfillOpen}
+        onOpenChange={setIsBackfillOpen}
+        players={playerOptions}
         onSuccess={loadData}
       />
     </div>
