@@ -7,6 +7,8 @@ import { clubService } from "@/services/clubService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import { getOutstandingAmount, getTransactionStatusMeta } from "@/lib/transactions";
 
 const formatDate = (value) => {
   if (!value) return "-";
@@ -47,8 +49,11 @@ export default function PlayerTransactionsPage() {
 
   const totals = useMemo(() => {
     const paid = transactions.filter((tx) => tx.paid).reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0);
-    const pending = transactions.filter((tx) => !tx.paid).reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0);
-    return { paid, pending };
+    const pending = getOutstandingAmount(transactions);
+    const waived = transactions
+      .filter((tx) => tx.waived)
+      .reduce((sum, tx) => sum + parseFloat(tx.amount || 0), 0);
+    return { paid, pending, waived };
   }, [transactions]);
 
   return (
@@ -78,7 +83,7 @@ export default function PlayerTransactionsPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <Card className={glassCard}>
                 <CardHeader>
                   <CardTitle className="text-sm text-white">Total Paid</CardTitle>
@@ -91,10 +96,19 @@ export default function PlayerTransactionsPage() {
               <Card className={glassCard}>
                 <CardHeader>
                   <CardTitle className="text-sm text-white">Pending Amount</CardTitle>
-                  <CardDescription className="text-white/60">Outstanding dues</CardDescription>
+                  <CardDescription className="text-white/60">Outstanding payable dues</CardDescription>
                 </CardHeader>
                 <CardContent className="text-2xl font-semibold text-white">
                   ₹{totals.pending.toLocaleString()}
+                </CardContent>
+              </Card>
+              <Card className={glassCard}>
+                <CardHeader>
+                  <CardTitle className="text-sm text-white">Waived Amount</CardTitle>
+                  <CardDescription className="text-white/60">Invoices waived by management</CardDescription>
+                </CardHeader>
+                <CardContent className="text-2xl font-semibold text-white">
+                  ₹{totals.waived.toLocaleString()}
                 </CardContent>
               </Card>
             </div>
@@ -119,10 +133,16 @@ export default function PlayerTransactionsPage() {
                           <p className="text-xs text-white/60">
                             {formatDate(tx.payment_date)} {tx.due_date ? `• Due ${formatDate(tx.due_date)}` : ""}
                           </p>
+                          {tx.waived_reason ? (
+                            <p className="mt-1 text-xs text-sky-200">Waiver reason: {tx.waived_reason}</p>
+                          ) : null}
                         </div>
                         <div className="flex items-center gap-3">
-                          <Badge variant={tx.paid ? "default" : "outline"} className="border-white/20 text-white">
-                            {tx.paid ? "Paid" : "Pending"}
+                          <Badge
+                            variant="outline"
+                            className={cn("border-white/20", getTransactionStatusMeta(tx).className)}
+                          >
+                            {getTransactionStatusMeta(tx).label}
                           </Badge>
                           <span className="text-sm font-semibold text-white">
                             ₹{parseFloat(tx.amount || 0).toLocaleString()}

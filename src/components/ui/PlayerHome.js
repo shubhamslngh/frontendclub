@@ -19,8 +19,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import SquadCard from "@/components/ui/SquadCard";
+import LeaveRequestModal from "@/components/ui/LeaveRequestModal";
 import { PLAYER_ROLE_OPTIONS } from "@/lib/players";
 import { getStatusMeta, normalizeMatchStatus } from "@/lib/matches";
+import {
+  formatLeaveRange,
+  formatLeaveRequestStatus,
+  formatMembershipStatus,
+  getLeaveRequestStatusClasses,
+} from "@/lib/membership";
+import { getTransactionStatusMeta, isTransactionPayable } from "@/lib/transactions";
+import { cn } from "@/lib/utils";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 
@@ -78,6 +87,10 @@ export default function PlayerHome() {
   const [showPlayers, setShowPlayers] = useState(false);
   const [showOtherTeams, setShowOtherTeams] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveRequestsLoading, setLeaveRequestsLoading] = useState(false);
+  const [leaveRequestModalOpen, setLeaveRequestModalOpen] = useState(false);
+  const [leaveRequestSubmitting, setLeaveRequestSubmitting] = useState(false);
   const [profileForm, setProfileForm] = useState({
     first_name: "",
     last_name: "",
@@ -157,13 +170,19 @@ export default function PlayerHome() {
   const playerId = player.id || dashboard.player_id || null;
 
   const pendingTransaction = useMemo(() => {
-    const unpaid = transactions.filter((tx) => tx && tx.paid === false);
+    const unpaid = transactions.filter((tx) => isTransactionPayable(tx));
     if (unpaid.length === 0) return null;
     return unpaid.sort((a, b) => {
       const aDate = new Date(a.due_date || a.payment_date || 0).getTime();
       const bDate = new Date(b.due_date || b.payment_date || 0).getTime();
       return aDate - bDate;
     })[0];
+  }, [transactions]);
+
+  const waivedTransactions = useMemo(() => {
+    return transactions
+      .filter((tx) => tx?.waived)
+      .sort((a, b) => new Date(b.due_date || b.payment_date || 0) - new Date(a.due_date || a.payment_date || 0));
   }, [transactions]);
 
   const pendingTransactionId =
@@ -184,6 +203,7 @@ export default function PlayerHome() {
   const membershipStatus =
     membership.status ||
     (player.membership_active ? "Active" : membership.is_active ? "Active" : "Inactive");
+  const leavePeriods = membership.leave_periods || [];
   const displayName =
     [player.first_name, player.last_name].filter(Boolean).join(" ").trim() ||
     "Player";
@@ -372,6 +392,23 @@ export default function PlayerHome() {
     loadTransactions();
   }, [playerId]);
 
+  useEffect(() => {
+    const loadLeaveRequests = async () => {
+      setLeaveRequestsLoading(true);
+      try {
+        const res = await clubService.getLeaveRequests();
+        setLeaveRequests(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error("Failed to load leave requests", error);
+        setLeaveRequests([]);
+      } finally {
+        setLeaveRequestsLoading(false);
+      }
+    };
+
+    loadLeaveRequests();
+  }, []);
+
   const handlePayNow = async () => {
     if (!pendingTransactionId) return;
     const toastId = toast.loading("Starting payment...");
@@ -390,6 +427,26 @@ export default function PlayerHome() {
     } catch (error) {
       console.error("Payment initiation failed:", error);
       toast.error("Payment initiation failed. Please try again.", { id: toastId });
+    }
+  };
+
+  const handleLeaveRequestSubmit = async (payload) => {
+    try {
+      setLeaveRequestSubmitting(true);
+      await clubService.createLeaveRequest(payload);
+      toast.success("Leave request submitted for approval.");
+      setLeaveRequestModalOpen(false);
+      const res = await clubService.getLeaveRequests();
+      setLeaveRequests(Array.isArray(res.data) ? res.data : []);
+    } catch (error) {
+      console.error("Failed to submit leave request", error);
+      const message =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        "Could not submit leave request.";
+      toast.error(message);
+    } finally {
+      setLeaveRequestSubmitting(false);
     }
   };
 
@@ -566,7 +623,7 @@ export default function PlayerHome() {
               </h1>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="border-white/20 text-white">
-                  Membership: {membershipStatus || "Unknown"}
+                  Membership: {formatMembershipStatus(membershipStatus)}
                 </Badge>
                 {nextDueDate && (
                   <span className="text-xs text-white/60">
@@ -607,6 +664,18 @@ export default function PlayerHome() {
               <Link href="/payment/status">Check Status</Link>
             </Button>
             </div>
+          </div>
+        </section>
+      )}
+
+      {!hasPendingPayment && waivedTransactions.length > 0 && (
+        <section className="rounded-3xl border border-sky-400/30 bg-sky-500/10 p-5 text-white">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-sky-200">Invoice Waived</p>
+            <h2 className="text-lg font-semibold text-white">No payment needed for your latest waived invoice</h2>
+            <p className="text-sm text-white/70">
+              {waivedTransactions[0]?.waived_reason || "Management waived this invoice."}
+            </p>
           </div>
         </section>
       )}
@@ -980,11 +1049,88 @@ export default function PlayerHome() {
               <div className="flex items-center gap-3">
                 <ShieldCheck className="h-5 w-5 text-emerald-300" />
                 <div>
-                  <p className="text-sm font-semibold text-white">Status: {membershipStatus || "Unknown"}</p>
+                  <p className="text-sm font-semibold text-white">Status: {formatMembershipStatus(membershipStatus)}</p>
                   <p className="text-xs text-white/60">
                     {nextDueDate ? `Next due: ${formatDate(nextDueDate)}` : "No due date"}
                   </p>
                 </div>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <div className="grid gap-3 text-sm text-white/75 sm:grid-cols-2">
+                <p>Join Date: {formatDate(membership.join_date)}</p>
+                <p>Fee Exempt: {membership.fee_exempt ? "Yes" : "No"}</p>
+                <p>Leave Periods: {leavePeriods.length}</p>
+                <p>Status: {formatMembershipStatus(membershipStatus)}</p>
+              </div>
+              {membership.fee_exempt_reason ? (
+                <p className="mt-3 text-sm text-sky-200">Reason: {membership.fee_exempt_reason}</p>
+              ) : null}
+            </div>
+
+            {leavePeriods.length > 0 && (
+              <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                <p className="text-sm font-semibold text-white">Leave Periods</p>
+                <div className="mt-3 space-y-3">
+                  {leavePeriods.map((leave) => (
+                    <div key={leave.id} className="rounded-xl border border-white/10 bg-black/30 p-3">
+                      <p className="text-sm text-white">{formatLeaveRange(leave, formatDate)}</p>
+                      <p className="text-xs text-white/60">{leave.reason || "No reason provided"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-white">Leave Request Approval</p>
+                  <p className="mt-1 text-xs text-white/60">
+                    Submit leave for admin approval. Approved requests are applied to membership leave periods.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  onClick={() => setLeaveRequestModalOpen(true)}
+                >
+                  Request Leave
+                </Button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-white">Leave Request History</p>
+                {leaveRequestsLoading ? <span className="text-xs text-white/50">Loading...</span> : null}
+              </div>
+              <div className="mt-3 space-y-3">
+                {leaveRequests.length === 0 ? (
+                  <div className="text-sm text-white/60">No leave requests submitted yet.</div>
+                ) : (
+                  leaveRequests.map((request) => (
+                    <div key={request.id} className="rounded-xl border border-white/10 bg-black/30 p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-sm text-white">{formatLeaveRange(request, formatDate)}</p>
+                          <p className="mt-1 text-xs text-white/60">{request.reason || "No reason provided"}</p>
+                          {request.review_note ? (
+                            <p className="mt-2 text-xs text-white/60">Review note: {request.review_note}</p>
+                          ) : null}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={cn("capitalize", getLeaveRequestStatusClasses(request.status))}
+                        >
+                          {formatLeaveRequestStatus(request.status)}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 
@@ -1000,12 +1146,23 @@ export default function PlayerHome() {
                   {lastTransaction?.amount ? `₹${parseFloat(lastTransaction.amount).toLocaleString()}` : "-"}
                 </div>
               </div>
+              {lastTransaction ? (
+                <Badge
+                  variant="outline"
+                  className={cn("mt-4", getTransactionStatusMeta(lastTransaction).className)}
+                >
+                  {getTransactionStatusMeta(lastTransaction).label}
+                </Badge>
+              ) : null}
+              {lastTransaction?.waived_reason ? (
+                <p className="mt-2 text-xs text-sky-200">Waiver reason: {lastTransaction.waived_reason}</p>
+              ) : null}
               <Button
                 onClick={handlePayNow}
                 disabled={!pendingTransactionId}
                 className="mt-4 w-full bg-orange-500 text-white hover:bg-orange-400"
               >
-                Pay Membership
+                {pendingTransactionId ? "Pay Membership" : "No Payable Invoice"}
               </Button>
             </div>
           </CardContent>
@@ -1013,6 +1170,13 @@ export default function PlayerHome() {
       )}
 
       {activeTab === "media" && renderMediaSection()}
+
+      <LeaveRequestModal
+        open={leaveRequestModalOpen}
+        onOpenChange={setLeaveRequestModalOpen}
+        loading={leaveRequestSubmitting}
+        onSubmit={handleLeaveRequestSubmit}
+      />
 
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-white/10 bg-[#0B0F1A]/90 px-4 py-2 shadow-[0_-12px_30px_-20px_rgba(18,24,32,0.7)] backdrop-blur md:hidden">
         <div className="flex items-center justify-between">

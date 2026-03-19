@@ -36,11 +36,13 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [result, setResult] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (!open) {
       setFormData(EMPTY_FORM);
       setResult(null);
+      setErrors({});
     }
   }, [open]);
 
@@ -54,6 +56,17 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextErrors = {};
+    if (!formData.player_id) nextErrors.player_id = "Select a player.";
+    if (!formData.start_month) nextErrors.start_month = "Start month is required.";
+    if (!formData.end_month) nextErrors.end_month = "End month is required.";
+    if (formData.start_month && formData.end_month && formData.end_month < formData.start_month) {
+      nextErrors.end_month = "End month must be on or after start month.";
+    }
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+
     setLoading(true);
 
     try {
@@ -69,6 +82,7 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
 
       const response = await clubService.backfillMonthlyPayments(payload);
       setResult(response.data);
+      setErrors({});
       toast.success(response.data?.message || "Monthly payments backfilled successfully.");
       onSuccess?.();
     } catch (error) {
@@ -98,7 +112,10 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
             <Label htmlFor="backfill-player">Player</Label>
             <Select
               value={formData.player_id}
-              onValueChange={(value) => setFormData((current) => ({ ...current, player_id: value }))}
+              onValueChange={(value) => {
+                setFormData((current) => ({ ...current, player_id: value }));
+                setErrors((current) => ({ ...current, player_id: undefined }));
+              }}
             >
               <SelectTrigger id="backfill-player">
                 <SelectValue placeholder="Select player" />
@@ -111,6 +128,7 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
                 ))}
               </SelectContent>
             </Select>
+            {errors.player_id ? <p className="text-xs text-red-600">{errors.player_id}</p> : null}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -120,9 +138,14 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
                 id="start_month"
                 type="date"
                 value={formData.start_month}
-                onChange={(e) => setFormData((current) => ({ ...current, start_month: e.target.value }))}
+                onChange={(e) => {
+                  setFormData((current) => ({ ...current, start_month: e.target.value }));
+                  setErrors((current) => ({ ...current, start_month: undefined }));
+                }}
+                aria-invalid={Boolean(errors.start_month)}
                 required
               />
+              {errors.start_month ? <p className="text-xs text-red-600">{errors.start_month}</p> : null}
             </div>
 
             <div className="space-y-2">
@@ -131,9 +154,14 @@ export default function BackfillPaymentsModal({ open, onOpenChange, players, onS
                 id="end_month"
                 type="date"
                 value={formData.end_month}
-                onChange={(e) => setFormData((current) => ({ ...current, end_month: e.target.value }))}
+                onChange={(e) => {
+                  setFormData((current) => ({ ...current, end_month: e.target.value }));
+                  setErrors((current) => ({ ...current, end_month: undefined }));
+                }}
+                aria-invalid={Boolean(errors.end_month)}
                 required
               />
+              {errors.end_month ? <p className="text-xs text-red-600">{errors.end_month}</p> : null}
             </div>
           </div>
 

@@ -18,6 +18,10 @@ export const clubService = {
   approveRegistration: (id) => apiClient.post(`api/auth/registrations/${id}/approve/`),
   rejectRegistration: (id) => apiClient.post(`api/auth/registrations/${id}/reject/`),
   getPlayerDashboard: () => apiClient.get('api/auth/dashboard/'),
+  getLeaveRequests: () => apiClient.get('api/auth/leave-requests/'),
+  createLeaveRequest: (data) => apiClient.post('api/auth/leave-requests/', data),
+  approveLeaveRequest: (id, data) => apiClient.post(`api/auth/leave-requests/${id}/approve/`, data),
+  rejectLeaveRequest: (id, data) => apiClient.post(`api/auth/leave-requests/${id}/reject/`, data),
 
   // 2. Players
   getPlayers: () => apiClient.get('api/players/'),

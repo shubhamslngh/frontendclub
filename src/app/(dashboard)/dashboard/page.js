@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { clubService } from '@/services/clubService';
+import LeaveRequestReviewModal from "@/components/ui/LeaveRequestReviewModal";
+import WaiveInvoiceModal from "@/components/ui/WaiveInvoiceModal";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -13,6 +15,13 @@ import {
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { normalizeMatchStatus } from "@/lib/matches";
+import {
+  formatLeaveRange,
+  formatLeaveRequestStatus,
+  getLeaveRequestStatusClasses,
+} from "@/lib/membership";
+import { cn } from "@/lib/utils";
+import { getTransactionStatusMeta, isTransactionPayable } from "@/lib/transactions";
 
 const FALLBACK_MEDIA_BASE = "http://127.0.0.1:8000";
 
@@ -24,6 +33,8 @@ export default function DashboardOverview() {
     upcomingMatches: [],
     pendingResults: [],
     pendingRegistrations: [],
+    leaveRequests: [],
+    pendingLeaveRequests: [],
     pendingMedia: [],
     recentTransactions: [],
     pendingInvoices: [],
@@ -39,18 +50,26 @@ export default function DashboardOverview() {
   const [approvingMediaId, setApprovingMediaId] = useState(null);
   const [decliningMediaId, setDecliningMediaId] = useState(null);
   const [settlingTransactionId, setSettlingTransactionId] = useState(null);
+  const [waiveTransactionId, setWaiveTransactionId] = useState(null);
+  const [waiveModalOpen, setWaiveModalOpen] = useState(false);
+  const [activeTransaction, setActiveTransaction] = useState(null);
+  const [reviewingLeaveRequestId, setReviewingLeaveRequestId] = useState(null);
+  const [leaveReviewModalOpen, setLeaveReviewModalOpen] = useState(false);
+  const [activeLeaveRequest, setActiveLeaveRequest] = useState(null);
+  const [leaveReviewAction, setLeaveReviewAction] = useState("approve");
 
   const loadDashboardData = async () => {
     try {
       // Fetch all data in parallel
-      const [playersRes, teamsRes, matchesRes, financeRes, groundsRes, registrationsRes, mediaRes] = await Promise.all([
+      const [playersRes, teamsRes, matchesRes, financeRes, groundsRes, registrationsRes, mediaRes, leaveRequestsRes] = await Promise.all([
         clubService.getPlayers(),
         clubService.getTeams(),
         clubService.getMatches(),
         clubService.getTransactions(),
         clubService.getGrounds(),
         clubService.getPendingRegistrations(),
-        clubService.getMedia()
+        clubService.getMedia(),
+        clubService.getLeaveRequests(),
       ]);
 
       const players = playersRes.data;
@@ -59,6 +78,7 @@ export default function DashboardOverview() {
       const grounds = groundsRes.data;
       const pendingRegistrations = Array.isArray(registrationsRes.data) ? registrationsRes.data : [];
       const mediaItems = Array.isArray(mediaRes.data) ? mediaRes.data : [];
+      const leaveRequests = Array.isArray(leaveRequestsRes.data) ? leaveRequestsRes.data : [];
 
       // 1. Player Stats
       const activeMembers = players.filter(p => p.membership_active).length;
@@ -97,19 +117,20 @@ export default function DashboardOverview() {
         .reduce((sum, t) => sum + parseFloat(t.amount), 0);
       
       // Get last 4 transactions for the list
-      const recentTx = transactions
+      const recentTx = [...transactions]
         .sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date))
         .slice(0, 4);
 
-      // Filter pending invoices (Assuming API returns all. Ideally backend filters for user)
-      // For now, displaying all unpaid transactions as "Pending Dues"
       const pending = transactions
-        .filter(t => !t.paid)
-        .sort((a, b) => new Date(a.payment_date) - new Date(b.payment_date));
+        .filter((t) => isTransactionPayable(t))
+        .sort((a, b) => new Date(a.due_date || a.payment_date || 0) - new Date(b.due_date || b.payment_date || 0));
 
       const pendingMedia = mediaItems
         .filter((item) => item && item.is_approved === false)
         .sort((a, b) => new Date(b.uploaded_at || b.created_at || 0) - new Date(a.uploaded_at || a.created_at || 0));
+      const pendingLeaveRequests = leaveRequests
+        .filter((item) => item?.status === "pending")
+        .sort((a, b) => new Date(b.created_at || b.updated_at || 0) - new Date(a.created_at || a.updated_at || 0));
 
       setStats({
         playerCount: players.length,
@@ -118,6 +139,8 @@ export default function DashboardOverview() {
         upcomingMatches: upcoming,
         pendingResults,
         pendingRegistrations,
+        leaveRequests,
+        pendingLeaveRequests,
         pendingMedia,
         recentTransactions: recentTx,
         pendingInvoices: pending,
@@ -274,6 +297,57 @@ export default function DashboardOverview() {
     }
   };
 
+  const handleWaiveInvoice = async (payload) => {
+    if (!activeTransaction?.id) return;
+
+    const playerName = getTransactionPlayerName(activeTransaction);
+    const toastId = toast.loading(`Applying waiver for ${playerName}...`);
+
+    try {
+      setWaiveTransactionId(activeTransaction.id);
+      await clubService.updateTransaction(activeTransaction.id, payload);
+      toast.success(`Invoice waived for ${playerName}.`, { id: toastId });
+      setWaiveModalOpen(false);
+      setActiveTransaction(null);
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Failed to waive invoice:", error);
+      toast.error(getErrorMessage(error, "Could not waive this invoice."), { id: toastId });
+    } finally {
+      setWaiveTransactionId(null);
+    }
+  };
+
+  const handleLeaveReview = async (payload) => {
+    if (!activeLeaveRequest?.id) return;
+
+    const label = activeLeaveRequest.player_name || `Request #${activeLeaveRequest.id}`;
+    const toastId = toast.loading(
+      `${leaveReviewAction === "approve" ? "Approving" : "Rejecting"} ${label}'s leave request...`
+    );
+
+    try {
+      setReviewingLeaveRequestId(activeLeaveRequest.id);
+      if (leaveReviewAction === "approve") {
+        await clubService.approveLeaveRequest(activeLeaveRequest.id, payload);
+      } else {
+        await clubService.rejectLeaveRequest(activeLeaveRequest.id, payload);
+      }
+      toast.success(
+        `${label}'s leave request ${leaveReviewAction === "approve" ? "approved" : "rejected"}.`,
+        { id: toastId }
+      );
+      setLeaveReviewModalOpen(false);
+      setActiveLeaveRequest(null);
+      await loadDashboardData();
+    } catch (error) {
+      console.error("Failed to review leave request:", error);
+      toast.error(getErrorMessage(error, "Could not review this leave request."), { id: toastId });
+    } finally {
+      setReviewingLeaveRequestId(null);
+    }
+  };
+
   const handleApproveMedia = async (item) => {
     const label = item.title || item.file_name || `Media #${item.id}`;
     const toastId = toast.loading(`Approving ${label}...`);
@@ -407,6 +481,81 @@ export default function DashboardOverview() {
             {stats.pendingRegistrations.length > 5 && (
               <p className="text-xs text-blue-700">
                 +{stats.pendingRegistrations.length - 5} more pending registration{stats.pendingRegistrations.length - 5 === 1 ? "" : "s"}.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {stats.pendingLeaveRequests.length > 0 && (
+        <Card className="border-violet-200 bg-violet-50">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-violet-100 p-2 text-violet-700">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <CardTitle className="text-violet-900">Pending Leave Requests</CardTitle>
+                  <CardDescription className="mt-1 text-violet-700">
+                    {stats.pendingLeaveRequests.length} leave request{stats.pendingLeaveRequests.length === 1 ? "" : "s"} waiting for admin review.
+                  </CardDescription>
+                </div>
+              </div>
+              <Badge className="w-fit bg-violet-600 hover:bg-violet-600">
+                {stats.pendingLeaveRequests.length} Pending
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stats.pendingLeaveRequests.slice(0, 5).map((request) => (
+              <div
+                key={request.id}
+                className="flex flex-col gap-4 rounded-lg border border-violet-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="space-y-1">
+                  <p className="font-medium text-slate-900">{request.player_name || `Player #${request.player_id}`}</p>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                    <span>{formatLeaveRange(request, (value) => format(new Date(value), "MMM d, yyyy"))}</span>
+                    {request.created_at ? (
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="h-3.5 w-3.5 text-violet-600" />
+                        {format(new Date(request.created_at), "MMM d, yyyy h:mm a")}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-sm text-slate-600">{request.reason || "No reason provided"}</p>
+                </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    variant="outline"
+                    className="w-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 sm:w-auto"
+                    onClick={() => {
+                      setActiveLeaveRequest(request);
+                      setLeaveReviewAction("reject");
+                      setLeaveReviewModalOpen(true);
+                    }}
+                    disabled={reviewingLeaveRequestId === request.id}
+                  >
+                    {reviewingLeaveRequestId === request.id && leaveReviewAction === "reject" ? "Rejecting..." : "Reject"}
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => {
+                      setActiveLeaveRequest(request);
+                      setLeaveReviewAction("approve");
+                      setLeaveReviewModalOpen(true);
+                    }}
+                    disabled={reviewingLeaveRequestId === request.id}
+                  >
+                    {reviewingLeaveRequestId === request.id && leaveReviewAction === "approve" ? "Approving..." : "Approve Leave"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+            {stats.pendingLeaveRequests.length > 5 && (
+              <p className="text-xs text-violet-700">
+                +{stats.pendingLeaveRequests.length - 5} more pending leave request{stats.pendingLeaveRequests.length - 5 === 1 ? "" : "s"}.
               </p>
             )}
           </CardContent>
@@ -681,6 +830,16 @@ export default function DashboardOverview() {
                       >
                         {settlingTransactionId === t.id ? "Settling..." : "Settle"}
                       </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setActiveTransaction(t);
+                          setWaiveModalOpen(true);
+                        }}
+                        disabled={waiveTransactionId === t.id}
+                      >
+                        {waiveTransactionId === t.id ? "Waiving..." : "Waive"}
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -755,9 +914,20 @@ export default function DashboardOverview() {
                         <p className="text-sm font-medium leading-none">
                           {stats.playerMap[t.player] || `Player #${t.player}`}
                         </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {t.category.replace('_', ' ')}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-xs text-muted-foreground capitalize">
+                            {(t.category || "general").replace('_', ' ')}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={cn("capitalize", getTransactionStatusMeta(t).className)}
+                          >
+                            {getTransactionStatusMeta(t).label}
+                          </Badge>
+                        </div>
+                        {t.waived_reason ? (
+                          <p className="text-xs text-sky-600">{t.waived_reason}</p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="font-medium text-sm">+₹{parseFloat(t.amount).toLocaleString()}</div>
@@ -774,6 +944,27 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       </div>
+      <WaiveInvoiceModal
+        open={waiveModalOpen}
+        onOpenChange={(open) => {
+          setWaiveModalOpen(open);
+          if (!open) setActiveTransaction(null);
+        }}
+        loading={Boolean(activeTransaction?.id && waiveTransactionId === activeTransaction.id)}
+        transaction={activeTransaction ? { ...activeTransaction, player_name: getTransactionPlayerName(activeTransaction) } : null}
+        onSubmit={handleWaiveInvoice}
+      />
+      <LeaveRequestReviewModal
+        open={leaveReviewModalOpen}
+        onOpenChange={(open) => {
+          setLeaveReviewModalOpen(open);
+          if (!open) setActiveLeaveRequest(null);
+        }}
+        loading={Boolean(activeLeaveRequest?.id && reviewingLeaveRequestId === activeLeaveRequest.id)}
+        request={activeLeaveRequest}
+        action={leaveReviewAction}
+        onSubmit={handleLeaveReview}
+      />
     </div>
   );
 }

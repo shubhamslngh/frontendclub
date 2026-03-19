@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Search, Plus, Trophy, Users, Phone, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatRoleLabel, getMembershipStatusClasses } from "@/lib/players";
+import { formatLeaveRange, formatMembershipStatus } from "@/lib/membership";
 import { toast } from "sonner";
 
 export default function PlayersPage() {
@@ -67,9 +68,9 @@ export default function PlayersPage() {
     const leavePeriods = player.membership?.leave_periods || [];
 
     return (
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <Badge variant="outline" className={cn("capitalize", getMembershipStatusClasses(status))}>
-          {status}
+          {formatMembershipStatus(status)}
         </Badge>
         <span className="text-[10px] text-muted-foreground font-mono">
           Joined: {player.membership?.join_date || "-"}
@@ -80,10 +81,28 @@ export default function PlayersPage() {
           </span>
         ) : null}
         {leavePeriods.length > 0 ? (
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500">
+              Leave Periods
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {leavePeriods.map((leave) => (
+                <div key={leave.id} className="rounded border border-slate-200 bg-white px-2 py-1.5">
+                  <p className="text-[10px] font-medium text-slate-700">
+                    {formatLeaveRange(leave)}
+                  </p>
+                  <p className="text-[10px] text-slate-500">
+                    {leave.reason || "No reason provided"}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
           <span className="text-[10px] text-muted-foreground">
-            Leave periods: {leavePeriods.length}
+            No applied leave periods
           </span>
-        ) : null}
+        )}
       </div>
     );
   };

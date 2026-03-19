@@ -21,9 +21,11 @@ export default function PaymentModal({ open, onOpenChange, onSuccess }) {
   const [formData, setFormData] = useState({
     player: "",
     amount: "",
-    category: "monthly_fee", // Changed from payment_type
+    category: "monthly",
     payment_date: new Date().toISOString().split('T')[0], // Changed from date
-    paid: false // Default to pending invoice
+    paid: false, // Default to pending invoice
+    waived: false,
+    waived_reason: "",
   });
 
   useEffect(() => {
@@ -43,6 +45,8 @@ export default function PaymentModal({ open, onOpenChange, onSuccess }) {
         category: formData.category,
         payment_date: formData.payment_date,
         paid: formData.paid,
+        waived: formData.waived,
+        waived_reason: formData.waived ? formData.waived_reason.trim() : "",
         // If your backend requires due_date, we can set it to payment_date for immediate payments
         due_date: formData.payment_date 
       };
@@ -132,12 +136,51 @@ export default function PaymentModal({ open, onOpenChange, onSuccess }) {
             <Checkbox
               id="paid"
               checked={formData.paid}
-              onCheckedChange={(checked) => setFormData({...formData, paid: checked})}
+              onCheckedChange={(checked) =>
+                setFormData({
+                  ...formData,
+                  paid: Boolean(checked),
+                  waived: checked ? false : formData.waived,
+                })
+              }
             />
             <Label htmlFor="paid" className="cursor-pointer">
               Mark as Paid?
             </Label>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="waived"
+              checked={formData.waived}
+              onCheckedChange={(checked) =>
+                setFormData({
+                  ...formData,
+                  waived: Boolean(checked),
+                  paid: checked ? false : formData.paid,
+                  waived_reason: checked ? formData.waived_reason : "",
+                })
+              }
+            />
+            <Label htmlFor="waived" className="cursor-pointer">
+              Mark as Waived?
+            </Label>
+          </div>
+
+          {formData.waived ? (
+            <div className="space-y-2">
+              <Label htmlFor="waived_reason">Waiver Reason</Label>
+              <textarea
+                id="waived_reason"
+                value={formData.waived_reason}
+                onChange={(e) => setFormData({ ...formData, waived_reason: e.target.value })}
+                rows={3}
+                className="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 min-h-[88px] w-full rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+                placeholder="Approved leave or management exception"
+                required
+              />
+            </div>
+          ) : null}
 
           <DialogFooter>
             <Button type="submit" disabled={loading} className="w-full">

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MEMBERSHIP_STATUS_OPTIONS } from "@/lib/membership";
 import { PLAYER_ROLE_OPTIONS } from "@/lib/players";
 import { clubService } from "@/services/clubService";
 
@@ -214,10 +215,11 @@ export default function PlayerModal({ open, onOpenChange, player, onSuccess }) {
                     <SelectValue placeholder="Select membership status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                    <SelectItem value="left">Left</SelectItem>
+                    {MEMBERSHIP_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
